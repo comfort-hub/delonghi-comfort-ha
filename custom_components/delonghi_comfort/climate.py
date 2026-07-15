@@ -57,8 +57,20 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        """Return the current action."""
-        return HVACAction.HEATING if self.status.is_on else HVACAction.OFF
+        """Return whether the element is actually calling for heat.
+
+        The heater is bang-bang thermostatic — it draws full power (or the Eco cap)
+        only while the room is below the setpoint, and idles otherwise. There is no
+        explicit "heating" flag in the cloud data, so derive it from room vs target
+        temperature (the same inputs the firmware's own thermostat uses).
+        """
+        if not self.status.is_on:
+            return HVACAction.OFF
+        current = self.status.current_temperature
+        target = self.status.target_temperature
+        if current is not None and target is not None and current < target:
+            return HVACAction.HEATING
+        return HVACAction.IDLE
 
     @property
     def current_temperature(self) -> float | None:

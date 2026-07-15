@@ -18,6 +18,7 @@ CONF_MODEL: Final = "model"
 # safety-net refresh in case a push is missed.
 SCAN_INTERVAL_SECONDS: Final = 60
 
-# The Dragon 5 accepts whole-degree setpoints in this range.
+# The Dragon 5 accepts whole-degree setpoints in this range. The firmware caps the
+# setpoint at 28 °C (higher values are rejected — matches the physical dial's ceiling).
 MIN_TEMP: Final = 15
-MAX_TEMP: Final = 30
+MAX_TEMP: Final = 28
