@@ -1,0 +1,53 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Sign in with your My Comfort Hub account.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "device": {
+        "description": "Select the appliance to add.",
+        "data": {
+          "thing_name": "Appliance"
+        }
+      },
+      "reauth_confirm": {
+        "description": "Re-enter the password for {email}.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials.",
+      "cannot_connect": "Failed to connect.",
+      "no_devices": "No appliances were found on this account."
+    },
+    "abort": {
+      "already_configured": "This appliance is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "entity": {
+    "switch": {
+      "eco": { "name": "Eco" },
+      "night_mode": { "name": "Night mode" },
+      "silent": { "name": "Silent" },
+      "child_lock": { "name": "Child lock" }
+    },
+    "number": {
+      "brightness": { "name": "LED brightness" }
+    },
+    "sensor": {
+      "room_temperature": { "name": "Room temperature" },
+      "power_board_temperature": { "name": "Power board temperature" },
+      "ui_board_temperature": { "name": "Display board temperature" }
+    },
+    "binary_sensor": {
+      "alarm": { "name": "Fault" }
+    }
+  }
+}
