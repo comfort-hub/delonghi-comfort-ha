@@ -3,10 +3,10 @@
   "name": "De'Longhi Comfort",
   "codeowners": ["@shauneccles"],
   "config_flow": true,
-  "documentation": "https://github.com/shauneccles/delonghi-comfort-ha",
+  "documentation": "https://github.com/comfort-hub/delonghi-comfort-ha",
   "integration_type": "device",
   "iot_class": "cloud_push",
-  "issue_tracker": "https://github.com/shauneccles/delonghi-comfort-ha/issues",
+  "issue_tracker": "https://github.com/comfort-hub/delonghi-comfort-ha/issues",
   "requirements": ["delonghi-comfort==0.1.0"],
   "version": "0.1.0"
 }
