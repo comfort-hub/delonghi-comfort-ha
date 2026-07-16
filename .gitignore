@@ -142,6 +142,10 @@ pytest_buckets.txt
 # AI tooling
 .claude
 
+# The global `data/` rule above (from hass-release) would ignore docs/data — keep it tracked.
+!docs/data/
+!docs/data/**
+
 # Ruff
 .ruff_cache
 
