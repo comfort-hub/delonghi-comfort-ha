@@ -19,6 +19,9 @@ It uses a proper `DataUpdateCoordinator` with a live push connection (AWS IoT MQ
 - **Sensors** — room temperature, power-board / display-board temperatures (diagnostic).
 - **Binary sensor** — fault/alarm (with the individual active flags as attributes).
 
+For driving the heater from an external room thermostat (e.g. Versatile Thermostat) with
+minimal cycling and no relay noise, see [`docs/control-tuning.md`](docs/control-tuning.md).
+
 ## Installation (HACS)
 
 1. HACS → Integrations → ⋮ → **Custom repositories**.
