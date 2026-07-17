@@ -79,11 +79,26 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
     async def _async_update_data(self) -> MachineStatus:
         """Poll the current status (the live connection also pushes updates)."""
         try:
+            await self._async_verify_online()
             return await self.client.async_get_status()
         except AuthenticationError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except DelonghiComfortError as err:
             raise UpdateFailed(str(err)) from err
+
+    async def _async_verify_online(self) -> None:
+        """Raise ``UpdateFailed`` when the heater is offline.
+
+        The cloud keeps serving the last shadow document after the heater drops
+        off Wi-Fi, so a plain status read cannot tell live from stale. A REST
+        device lookup gives the real connectivity, and re-exercises the JWT so an
+        expired token surfaces as ``AuthenticationError`` (-> reauth) instead of a
+        silent stall.
+        """
+        thing = self.config_entry.data[CONF_THING_NAME]
+        devices = await self.client.async_get_devices()
+        if not any(d.thing_name == thing and d.online for d in devices):
+            raise UpdateFailed("the heater is offline")
 
     @callback
     def _handle_push(self, status: MachineStatus) -> None:

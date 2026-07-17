@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
     from .coordinator import DelonghiComfortCoordinator, DelonghiConfigEntry
 
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -47,5 +49,7 @@ class DelonghiBrightness(DelonghiComfortEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         """Set the brightness level."""
-        await self.coordinator.client.async_set_brightness(int(value))
+        await self._async_guard(
+            self.coordinator.client.async_set_brightness(int(value))
+        )
         await self.coordinator.async_request_refresh()

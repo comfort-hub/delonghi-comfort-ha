@@ -28,6 +28,8 @@ class DelonghiSwitchDescription(SwitchEntityDescription):
     set_fn: Callable[[DelonghiComfort, bool], Awaitable[None]]
 
 
+PARALLEL_UPDATES = 1
+
 SWITCHES: tuple[DelonghiSwitchDescription, ...] = (
     DelonghiSwitchDescription(
         key="eco",
@@ -88,10 +90,14 @@ class DelonghiSwitch(DelonghiComfortEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the feature on."""
-        await self.entity_description.set_fn(self.coordinator.client, True)
+        await self._async_guard(
+            self.entity_description.set_fn(self.coordinator.client, True)
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the feature off."""
-        await self.entity_description.set_fn(self.coordinator.client, False)
+        await self._async_guard(
+            self.entity_description.set_fn(self.coordinator.client, False)
+        )
         await self.coordinator.async_request_refresh()
