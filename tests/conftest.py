@@ -115,6 +115,7 @@ def mock_client(device: Device) -> Generator[MagicMock]:
         "async_set_night_mode",
         "async_set_silent",
         "async_set_brightness",
+        "async_set_schedule_enabled",
     ):
         setattr(client, method, AsyncMock())
 
