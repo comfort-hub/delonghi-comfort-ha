@@ -65,13 +65,14 @@ async def test_command_failure_raises_home_assistant_error(
         side_effect=CommandTimeoutError("no ack")
     )
 
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as err:
         await hass.services.async_call(
             CLIMATE_DOMAIN,
             SERVICE_SET_TEMPERATURE,
             {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 23},
             blocking=True,
         )
+    assert err.value.translation_key == "command_failed"
 
 
 async def test_auth_rejection_triggers_reauth(

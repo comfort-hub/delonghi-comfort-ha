@@ -13,11 +13,15 @@ It uses a proper `DataUpdateCoordinator` with a live push connection (AWS IoT MQ
 
 ## Entities
 
-- **Climate** — on/off, target temperature, measured room temperature.
-- **Switches** — Eco, Night mode, Silent, Child lock.
-- **Number** — LED ring brightness (0–3).
-- **Sensors** — room temperature, power-board / display-board temperatures (diagnostic).
-- **Binary sensor** — fault/alarm (with the individual active flags as attributes).
+- **Climate** — power (off / heat / auto), target temperature, measured room temperature, and
+  a heating/idle action. It also carries an **Eco** preset (the heater's power-limit mode). *Auto*
+  follows the heater's on-board weekly schedule, so the setpoint is read-only there.
+- **Switches** *(config)* — Night mode, Silent, Child lock.
+- **Select** *(config)* — LED display brightness (Off / Low / Medium / High).
+- **Sensors** — room temperature and timer remaining; plus diagnostics that are **disabled by
+  default**: power-board / display-board temperatures, LAN IP, firmware partition, update progress.
+- **Binary sensors** — Safety cut-out, Overheat protection and Malfunction (diagnostic faults);
+  Timer running; and Cloud connection (whether the live push link is up).
 
 For driving the heater from an external room thermostat (e.g. Versatile Thermostat) with
 minimal cycling and no relay noise, see [`docs/control-tuning.md`](docs/control-tuning.md).
