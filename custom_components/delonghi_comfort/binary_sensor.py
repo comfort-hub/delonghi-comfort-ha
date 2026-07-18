@@ -27,7 +27,8 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the binary sensor entities."""
-    async_add_entities([DelonghiProblem(entry.runtime_data)])
+    coordinator = entry.runtime_data
+    async_add_entities([DelonghiProblem(coordinator), DelonghiTimerActive(coordinator)])
 
 
 class DelonghiProblem(DelonghiComfortEntity, BinarySensorEntity):
@@ -50,3 +51,19 @@ class DelonghiProblem(DelonghiComfortEntity, BinarySensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Expose the individual active alarm flags."""
         return {name: active for name, active in self.status.alarms.items() if active}
+
+
+class DelonghiTimerActive(DelonghiComfortEntity, BinarySensorEntity):
+    """Whether the on/off timer is currently counting down."""
+
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_translation_key = "timer_active"
+
+    def __init__(self, coordinator: DelonghiComfortCoordinator) -> None:
+        """Initialise the timer-active sensor."""
+        super().__init__(coordinator, "timer_active")
+
+    @property
+    def is_on(self) -> bool:
+        """Return true while the on/off timer is running."""
+        return self.status.timer_active

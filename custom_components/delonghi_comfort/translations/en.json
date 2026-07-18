@@ -44,10 +44,15 @@
     "sensor": {
       "room_temperature": { "name": "Room temperature" },
       "power_board_temperature": { "name": "Power board temperature" },
-      "ui_board_temperature": { "name": "Display board temperature" }
+      "ui_board_temperature": { "name": "Display board temperature" },
+      "timer_remaining": { "name": "Timer remaining" },
+      "lan_ip": { "name": "LAN IP" },
+      "firmware_partition": { "name": "Firmware partition" },
+      "ota_progress": { "name": "Firmware update progress" }
     },
     "binary_sensor": {
-      "alarm": { "name": "Fault" }
+      "alarm": { "name": "Fault" },
+      "timer_active": { "name": "Timer" }
     }
   }
 }
