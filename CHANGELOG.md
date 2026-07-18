@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.3.0...v0.4.0) (2026-07-18)
+
+
+### Features
+
+* split alarms + reconfigure flow + quality-scale bronze ([#9](https://github.com/comfort-hub/delonghi-comfort-ha/issues/9), [#12](https://github.com/comfort-hub/delonghi-comfort-ha/issues/12)) ([d04274e](https://github.com/comfort-hub/delonghi-comfort-ha/commit/d04274e44818b0235e7ffa61bf721b87975023d5))
+
 ## [0.3.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.2...v0.3.0) (2026-07-18)
 
 
