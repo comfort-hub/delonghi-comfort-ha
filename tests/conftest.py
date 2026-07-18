@@ -25,7 +25,9 @@ from custom_components.delonghi_comfort.const import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
+
+    from delonghi_comfort import ConnectionState
 
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
@@ -123,6 +125,23 @@ def mock_client(device: Device) -> Generator[MagicMock]:
         )
     )
     client.add_status_listener = MagicMock(return_value=lambda: None)
+
+    # Capture connection listeners so tests can drive connection-state changes;
+    # `fire_connection` walks them the way the real transport would.
+    connection_listeners: list[Callable[[ConnectionState], None]] = []
+
+    def _add_connection_listener(
+        callback: Callable[[ConnectionState], None],
+    ) -> Callable[[], None]:
+        connection_listeners.append(callback)
+        return lambda: None
+
+    def _fire_connection(state: ConnectionState) -> None:
+        for callback in connection_listeners:
+            callback(state)
+
+    client.add_connection_listener = MagicMock(side_effect=_add_connection_listener)
+    client.fire_connection = _fire_connection
     for method in (
         "async_set_power",
         "async_set_temperature",

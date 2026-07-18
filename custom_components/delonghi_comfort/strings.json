@@ -62,7 +62,8 @@
       "safety_alarm": { "name": "Safety cut-out" },
       "overheat_alarm": { "name": "Overheat protection" },
       "problem_alarm": { "name": "Fault (other)" },
-      "timer_active": { "name": "Timer" }
+      "timer_active": { "name": "Timer" },
+      "connection": { "name": "Cloud connection" }
     }
   }
 }
