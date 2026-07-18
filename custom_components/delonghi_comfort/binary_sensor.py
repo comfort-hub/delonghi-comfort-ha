@@ -52,20 +52,9 @@ class DelonghiBinarySensorDescription(BinarySensorEntityDescription):
     """Describes a De'Longhi Comfort binary sensor."""
 
     value_fn: Callable[[MachineStatus], bool]
-    attrs_fn: Callable[[MachineStatus], dict[str, bool]] | None = None
 
 
 BINARY_SENSORS: tuple[DelonghiBinarySensorDescription, ...] = (
-    DelonghiBinarySensorDescription(
-        key="alarm",
-        translation_key="alarm",
-        device_class=BinarySensorDeviceClass.PROBLEM,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda status: status.any_alarm,
-        attrs_fn=lambda status: {
-            name: active for name, active in status.alarms.items() if active
-        },
-    ),
     DelonghiBinarySensorDescription(
         key="safety_alarm",
         translation_key="safety_alarm",
@@ -81,8 +70,8 @@ BINARY_SENSORS: tuple[DelonghiBinarySensorDescription, ...] = (
         value_fn=lambda status: _matches(status, _OVERHEAT_PREFIXES),
     ),
     DelonghiBinarySensorDescription(
-        key="problem_alarm",
-        translation_key="problem_alarm",
+        key="malfunction",
+        translation_key="malfunction",
         device_class=BinarySensorDeviceClass.PROBLEM,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=_uncategorised,
@@ -128,13 +117,6 @@ class DelonghiBinarySensor(DelonghiComfortEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Return the current on/off state."""
         return self.entity_description.value_fn(self.status)
-
-    @property
-    def extra_state_attributes(self) -> dict[str, bool] | None:
-        """Expose extra attributes (e.g. individual alarm flags) when provided."""
-        if self.entity_description.attrs_fn is None:
-            return None
-        return self.entity_description.attrs_fn(self.status)
 
 
 class DelonghiConnectivity(DelonghiComfortEntity, BinarySensorEntity):
