@@ -5,10 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
-from delonghi_comfort import Device
+from delonghi_comfort import AuthenticationError, Device
 from delonghi_comfort.exceptions import CommandTimeoutError
 import pytest
 
+from homeassistant import config_entries
 from homeassistant.components.climate import (
     ATTR_TEMPERATURE,
     DOMAIN as CLIMATE_DOMAIN,
@@ -71,3 +72,21 @@ async def test_command_failure_raises_home_assistant_error(
             {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 23},
             blocking=True,
         )
+
+
+async def test_auth_rejection_triggers_reauth(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """An auth rejection during the poll (an expired JWT) starts a reauth flow."""
+    await _setup(hass, mock_config_entry)
+    mock_client.async_get_devices = AsyncMock(
+        side_effect=AuthenticationError("token expired")
+    )
+
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert any(
+        flow["context"]["source"] == config_entries.SOURCE_REAUTH
+        for flow in hass.config_entries.flow.async_progress()
+    )
