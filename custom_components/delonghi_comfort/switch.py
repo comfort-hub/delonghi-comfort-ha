@@ -32,12 +32,6 @@ PARALLEL_UPDATES = 1
 
 SWITCHES: tuple[DelonghiSwitchDescription, ...] = (
     DelonghiSwitchDescription(
-        key="eco",
-        translation_key="eco",
-        value_fn=lambda status: status.eco,
-        set_fn=lambda client, on: client.async_set_eco(on),
-    ),
-    DelonghiSwitchDescription(
         key="night_mode",
         translation_key="night_mode",
         value_fn=lambda status: status.night_mode,
