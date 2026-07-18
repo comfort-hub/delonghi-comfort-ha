@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 from delonghi_comfort import MachineStatus, TemperatureUnit
+import pytest
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -15,6 +16,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 if TYPE_CHECKING:
@@ -188,3 +190,46 @@ async def test_hvac_action_idle_at_setpoint(
     )
     cid = await _setup(hass, mock_config_entry)
     assert hass.states.get(cid).attributes["hvac_action"] == "idle"
+
+
+async def test_hvac_action_deadband_holds_through_setpoint(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A room drifting just past the setpoint holds the last action (no flapping)."""
+    # Start clearly below the setpoint -> heating.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "RoomTemp": 210, "TempSetPoint": 22}
+        )
+    )
+    cid = await _setup(hass, mock_config_entry)
+    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+
+    # Drift to 22.1 °C: within the deadband of the 22 °C setpoint. A stateless
+    # current<target rule would flip to idle; the deadband must hold heating.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "RoomTemp": 221, "TempSetPoint": 22}
+        )
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+
+
+async def test_set_temperature_rejected_in_auto(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Setting a target temperature while the on-board schedule (AUTO) runs is rejected."""
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "ScheduleEnable": True})
+    )
+    cid = await _setup(hass, mock_config_entry)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            CLIMATE_DOMAIN,
+            SERVICE_SET_TEMPERATURE,
+            {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 20},
+            blocking=True,
+        )
+    mock_client.async_set_temperature.assert_not_awaited()
