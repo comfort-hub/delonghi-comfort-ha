@@ -34,12 +34,14 @@ SWITCHES: tuple[DelonghiSwitchDescription, ...] = (
     DelonghiSwitchDescription(
         key="night_mode",
         translation_key="night_mode",
+        entity_category=EntityCategory.CONFIG,
         value_fn=lambda status: status.night_mode,
         set_fn=lambda client, on: client.async_set_night_mode(on),
     ),
     DelonghiSwitchDescription(
         key="silent",
         translation_key="silent",
+        entity_category=EntityCategory.CONFIG,
         value_fn=lambda status: status.silent,
         set_fn=lambda client, on: client.async_set_silent(on),
     ),
