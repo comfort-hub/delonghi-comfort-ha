@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.5.1...v0.6.0) (2026-07-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* brightness moves number.* -> select.*; entity_id/unique_id change; use select.select_option.
+
+### Features
+
+* expose LED brightness as a select instead of a number ([cb589c5](https://github.com/comfort-hub/delonghi-comfort-ha/commit/cb589c5b780c7c49dfb9818337f8b387c5b702ee)), closes [#41](https://github.com/comfort-hub/delonghi-comfort-ha/issues/41)
+
+
+### Bug Fixes
+
+* disable low-value diagnostic sensors by default ([9c9c1ae](https://github.com/comfort-hub/delonghi-comfort-ha/commit/9c9c1ae5e1e9c338e7a138a721f2a85ec2cd372a))
+* simplify fault binary sensors to per-category only ([e2ebbe7](https://github.com/comfort-hub/delonghi-comfort-ha/commit/e2ebbe70984a2d7740ca35dc711444d3e25d0fb2))
+* stabilise climate hvac_action and lock the setpoint in AUTO ([5c205cf](https://github.com/comfort-hub/delonghi-comfort-ha/commit/5c205cf3bd68942de7a9463191c8c8b6f3d855f2))
+
 ## [0.5.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.5.0...v0.5.1) (2026-07-18)
 
 
