@@ -56,9 +56,13 @@ class DelonghiComfortEntity(CoordinatorEntity[DelonghiComfortCoordinator]):
         """Await a control command, mapping library errors to ``HomeAssistantError``.
 
         Keeps a failed command from surfacing as an "Unexpected error" traceback
-        (and gives HA a clean, localisable service error).
+        and gives HA a clean, translated service error.
         """
         try:
             await action
         except DelonghiComfortError as err:
-            raise HomeAssistantError(f"De'Longhi command failed: {err}") from err
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_failed",
+                translation_placeholders={"error": str(err)},
+            ) from err

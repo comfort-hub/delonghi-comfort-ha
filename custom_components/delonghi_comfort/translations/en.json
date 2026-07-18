@@ -75,6 +75,9 @@
   "exceptions": {
     "set_temperature_in_auto": {
       "message": "Cannot set a target temperature while the heater is following its schedule (Auto). Switch to Heat first."
+    },
+    "command_failed": {
+      "message": "The De'Longhi command failed: {error}"
     }
   }
 }

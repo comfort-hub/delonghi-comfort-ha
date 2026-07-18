@@ -81,6 +81,8 @@ room-air sensor.
    switch **Eco on**. That is the "full power for heat-up, Eco to hold" strategy.
 
 Notes:
+- In this integration, **Eco is the climate `eco` preset** (`climate.set_preset_mode`) and the
+  setpoint is `climate.set_temperature` — there is no separate Eco switch entity.
 - Never switch the mains/plug relay for thermostatting — it clicks. Setpoint and Eco
   commands are silent.
 - If your target is at or above the Eco equilibrium (~25–26 °C here), you can simply
