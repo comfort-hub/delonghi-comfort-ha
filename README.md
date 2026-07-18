@@ -45,14 +45,15 @@ So this integration uses the cloud path, which is fully functional both at home 
 ## Development
 
 ```bash
-uv sync
+uv sync --locked
 uv run pytest
 uv run ruff check
 uv run mypy custom_components
 ```
 
-The `delonghi-comfort` library is consumed from the sibling checkout during development (see
-`[tool.uv.sources]` in `pyproject.toml`).
+`uv.lock` is committed and CI installs against it with `uv sync --locked`. The `delonghi-comfort`
+library is resolved from PyPI (pinned in `manifest.json`), so no sibling checkout is required — run
+`uv lock` after changing dependencies and commit the refreshed lockfile.
 
 ## License
 

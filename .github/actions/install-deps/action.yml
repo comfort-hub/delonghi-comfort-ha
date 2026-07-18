@@ -12,8 +12,8 @@ runs:
     - name: Set up Python
       shell: bash
       run: |
-        echo "PYTHON_VERSION=$(uv run python -c 'import platform; print(platform.python_version())')" >> "$GITHUB_ENV"
+        echo "PYTHON_VERSION=$(uv run --locked python -c 'import platform; print(platform.python_version())')" >> "$GITHUB_ENV"
 
     - name: Install dependencies with uv
       shell: bash
-      run: uv sync
+      run: uv sync --locked

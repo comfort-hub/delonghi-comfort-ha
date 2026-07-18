@@ -37,7 +37,3 @@ htmlcov/
 
 # AI tooling
 .claude/
-
-# uv lockfile: pins the sibling delonghi-comfort by local path until it is on
-# PyPI, so it is intentionally not committed (see README "Development").
-uv.lock
