@@ -22,3 +22,8 @@ SCAN_INTERVAL_SECONDS: Final = 60
 # setpoint at 28 °C (higher values are rejected — matches the physical dial's ceiling).
 MIN_TEMP: Final = 15
 MAX_TEMP: Final = 28
+
+# Fahrenheit setpoint range when the device displays °F. Confirmed from the app
+# (min 41 °F ≈ 5 °C — lower than a naive conversion of the °C minimum; max 82 °F).
+MIN_TEMP_F: Final = 41
+MAX_TEMP_F: Final = 82

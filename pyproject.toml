@@ -9,7 +9,7 @@ license = "GPL-3.0-or-later"
 version = "0.2.1"
 dependencies = [
     "homeassistant>=2025.9.0",
-    "delonghi-comfort>=0.2.1",
+    "delonghi-comfort>=0.2.2",
 ]
 
 [dependency-groups]

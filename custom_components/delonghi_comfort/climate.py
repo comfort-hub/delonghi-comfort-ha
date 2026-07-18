@@ -12,7 +12,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 
-from .const import MAX_TEMP, MIN_TEMP
+from .const import MAX_TEMP, MAX_TEMP_F, MIN_TEMP, MIN_TEMP_F
 from .entity import DelonghiComfortEntity
 
 if TYPE_CHECKING:
@@ -37,7 +37,6 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     """The heater as a climate entity."""
 
     _attr_name = None
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
@@ -45,12 +44,29 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         | ClimateEntityFeature.TURN_OFF
     )
     _attr_target_temperature_step = 1
-    _attr_min_temp = MIN_TEMP
-    _attr_max_temp = MAX_TEMP
 
     def __init__(self, coordinator: DelonghiComfortCoordinator) -> None:
         """Initialise the climate entity."""
         super().__init__(coordinator, "climate")
+
+    @property
+    def temperature_unit(self) -> str:
+        """Report whichever unit the device is currently displaying."""
+        return (
+            UnitOfTemperature.CELSIUS
+            if self.status.celsius
+            else UnitOfTemperature.FAHRENHEIT
+        )
+
+    @property
+    def min_temp(self) -> float:
+        """Minimum settable setpoint in the device's current unit."""
+        return MIN_TEMP if self.status.celsius else MIN_TEMP_F
+
+    @property
+    def max_temp(self) -> float:
+        """Maximum settable setpoint in the device's current unit."""
+        return MAX_TEMP if self.status.celsius else MAX_TEMP_F
 
     @property
     def hvac_mode(self) -> HVACMode:
@@ -111,8 +127,10 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set the target temperature."""
+        """Set the target temperature in the device's current unit."""
         await self._async_guard(
-            self.coordinator.client.async_set_temperature(int(kwargs[ATTR_TEMPERATURE]))
+            self.coordinator.client.async_set_temperature(
+                int(kwargs[ATTR_TEMPERATURE]), unit=self.status.temperature_unit
+            )
         )
         await self.coordinator.async_request_refresh()

@@ -5,15 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
-from delonghi_comfort import MachineStatus
+from delonghi_comfort import MachineStatus, TemperatureUnit
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
     DOMAIN as CLIMATE_DOMAIN,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_TEMPERATURE,
     HVACMode,
 )
-from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
+from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -100,3 +102,63 @@ async def test_set_off_powers_down(
         blocking=True,
     )
     mock_client.async_set_power.assert_awaited_with(False)
+
+
+async def test_celsius_device_bounds(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A Celsius device reports the 15-28 °C setpoint range."""
+    cid = await _setup(hass, mock_config_entry)
+    attrs = hass.states.get(cid).attributes
+    assert attrs["min_temp"] == 15
+    assert attrs["max_temp"] == 28
+
+
+async def test_fahrenheit_device_bounds(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A Fahrenheit device reports the 41-82 °F setpoint range (native unit)."""
+    hass.config.units = US_CUSTOMARY_SYSTEM
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempUnit": False})
+    )
+    cid = await _setup(hass, mock_config_entry)
+    attrs = hass.states.get(cid).attributes
+    assert attrs["min_temp"] == 41
+    assert attrs["max_temp"] == 82
+
+
+async def test_set_temperature_on_celsius_device(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Setting the temperature on a Celsius device sends a Celsius setpoint."""
+    cid = await _setup(hass, mock_config_entry)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 20},
+        blocking=True,
+    )
+    mock_client.async_set_temperature.assert_awaited_once_with(
+        20, unit=TemperatureUnit.CELSIUS
+    )
+
+
+async def test_set_temperature_on_fahrenheit_device(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Setting the temperature on a Fahrenheit device sends a Fahrenheit setpoint."""
+    hass.config.units = US_CUSTOMARY_SYSTEM
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempUnit": False})
+    )
+    cid = await _setup(hass, mock_config_entry)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 70},
+        blocking=True,
+    )
+    mock_client.async_set_temperature.assert_awaited_once_with(
+        70, unit=TemperatureUnit.FAHRENHEIT
+    )
