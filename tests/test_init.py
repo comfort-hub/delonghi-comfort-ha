@@ -29,7 +29,7 @@ async def test_setup_and_unload(
     # entities across the platforms exist
     assert hass.states.async_entity_ids("climate")
     assert hass.states.async_entity_ids("switch")
-    assert hass.states.async_entity_ids("number")
+    assert hass.states.async_entity_ids("select")
     assert hass.states.async_entity_ids("sensor")
 
     assert await hass.config_entries.async_unload(mock_config_entry.entry_id)

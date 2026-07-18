@@ -45,8 +45,16 @@
       "silent": { "name": "Silent" },
       "child_lock": { "name": "Child lock" }
     },
-    "number": {
-      "brightness": { "name": "LED brightness" }
+    "select": {
+      "brightness": {
+        "name": "LED brightness",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      }
     },
     "sensor": {
       "room_temperature": { "name": "Room temperature" },

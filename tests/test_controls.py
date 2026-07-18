@@ -1,4 +1,4 @@
-"""Tests that the switch and number entities call the library setters."""
+"""Tests that the switch and select entities call the library setters."""
 
 from __future__ import annotations
 
@@ -48,14 +48,19 @@ async def test_switch_toggle_calls_the_setter(
     mock_client.async_set_eco.assert_awaited_with(False)
 
 
-async def test_number_set_value_calls_the_setter(
+async def test_brightness_select_calls_the_setter(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """Setting the brightness number calls the library setter with the value."""
+    """The brightness select reports the current level and maps options to the setter."""
     await _setup(hass, mock_config_entry)
-    eid = _entity_id(hass, "number", "brightness")
+    eid = _entity_id(hass, "select", "brightness")
+    # conftest reports BrightnessLevel 1 -> "low".
+    assert hass.states.get(eid).state == "low"
 
     await hass.services.async_call(
-        "number", "set_value", {ATTR_ENTITY_ID: eid, "value": 2}, blocking=True
+        "select",
+        "select_option",
+        {ATTR_ENTITY_ID: eid, "option": "medium"},
+        blocking=True,
     )
-    mock_client.async_set_brightness.assert_awaited_with(2)
+    mock_client.async_set_brightness.assert_awaited_with(2)  # "medium" -> index 2

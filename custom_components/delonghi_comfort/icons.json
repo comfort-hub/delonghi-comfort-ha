@@ -1,6 +1,6 @@
 {
   "entity": {
-    "number": {
+    "select": {
       "brightness": {
         "default": "mdi:brightness-6"
       }
