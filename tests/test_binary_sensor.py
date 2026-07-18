@@ -43,7 +43,9 @@ async def _setup(
 
 
 def _state(hass: HomeAssistant, key: str) -> str:
-    eid = er.async_get(hass).async_get_entity_id("binary_sensor", DOMAIN, f"{THING}_{key}")
+    eid = er.async_get(hass).async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{THING}_{key}"
+    )
     assert eid is not None
     state = hass.states.get(eid)
     assert state is not None
