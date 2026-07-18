@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.7.0...v0.7.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* categorise night mode and silent as config ([386c473](https://github.com/comfort-hub/delonghi-comfort-ha/commit/386c473fe53656ade67d1ff4549191bce04ac477))
+
 ## [0.7.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.6.0...v0.7.0) (2026-07-18)
 
 
