@@ -143,6 +143,9 @@ def mock_client(device: Device) -> Generator[MagicMock]:
         patch(
             "custom_components.delonghi_comfort.config_flow.DelonghiComfort",
             return_value=client,
-        ),
+        ) as config_flow_ctor,
     ):
+        # Expose the config-flow constructor so tests can assert its call args
+        # (e.g. reauth passing the entry's stored region).
+        client.config_flow_ctor = config_flow_ctor
         yield client

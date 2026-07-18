@@ -4,7 +4,7 @@
 
 **Goal:** Discover a De'Longhi account's devices across all supported regions and let non-EU (and multi-region) accounts add the Home Assistant integration.
 
-**Architecture:** Add an `async_discover` entry point to the `delonghi-comfort` library (0.3.0) that logs in once and returns every device across all regions, each tagged with its region. The HA config flow consumes that tagged list and stores the chosen device's region; it holds no region logic itself.
+**Architecture:** Add an `async_discover` entry point to the `delonghi-comfort` library (0.2.1) that logs in once and returns every device across all regions, each tagged with its region. The HA config flow consumes that tagged list and stores the chosen device's region; it holds no region logic itself.
 
 **Tech Stack:** Python 3.12+/3.13, aiohttp, `delonghi-comfort` library, Home Assistant config flow, pytest / pytest-homeassistant-custom-component, uv, Ruff, mypy.
 
@@ -14,12 +14,12 @@
 - **HA style:** Ruff-clean, PEP8/257; f-strings (not `%`/`format`) except `%`-style logging; ordered imports; constants alphabetical/grouped with the region tables; comments are full sentences ending in a period; typing throughout; no secrets in logs.
 - Library `async_discover` return type is fixed: `tuple[GigyaCredentials, list[DiscoveredDevice]]`, `DiscoveredDevice(device: Device, region: str)`.
 - Regions: `SUPPORTED_REGIONS = ("eu", "us")`, eu first.
-- Cross-repo order: library 0.3.0 published to PyPI **before** the HA pin bump.
+- Cross-repo order: library 0.2.1 published to PyPI **before** the HA pin bump.
 - Reuse the existing library fake transports (`tests/fakes.py`: `FakeResponse`, `make_session`) and the HA `mock_*` fixtures (`tests/conftest.py`); do not introduce a new mocking style.
 
 ---
 
-## Phase 1 — Library (`delonghi-comfort`, cut 0.3.0)
+## Phase 1 — Library (`delonghi-comfort`, cut 0.2.1)
 
 Work in `/home/shaunes/dev/oss/comfort-hub/delonghi-comfort` on a branch `feat/region-discovery`.
 
@@ -231,24 +231,24 @@ async def async_discover(
 
 - [ ] **Step 6: Run tests.** `uv run pytest tests/test_discovery.py -q` → 7 PASS. Then `uv run pytest -q` (full suite) and `uvx prek run --all-files` → all green.
 
-- [ ] **Step 7: Commit.** `git commit -m "feat: add async_discover for cross-region device discovery"` (note: `feat` drives the 0.3.0 minor bump).
+- [ ] **Step 7: Commit.** `git commit -m "feat: add async_discover for cross-region device discovery"` (note: pre-1.0 the library's `bump-patch-for-minor-pre-major` config releases a `feat` as a **patch** — so this cuts 0.2.1, not 0.3.0).
 
-### Phase-1 gate: release 0.3.0
-Open a PR to `main`, merge with the `feat:` subject, let release-please cut **0.3.0**, merge the release PR, confirm PyPI shows `delonghi-comfort 0.3.0`.
+### Phase-1 gate: release 0.2.1
+Open a PR to `main`, merge with the `feat:` subject, let release-please cut **0.2.1**, merge the release PR, confirm PyPI shows `delonghi-comfort 0.2.1`.
 
 ---
 
 ## Phase 2 — HA integration (`delonghi-comfort-ha`)
 
-Work on the existing branch `fix/region-auto-probe`. Do NOT start until `delonghi-comfort==0.3.0` is on PyPI.
+Work on the existing branch `fix/region-auto-probe`. Do NOT start until `delonghi-comfort==0.2.1` is on PyPI.
 
-### Task H1: Pin the library to 0.3.0
+### Task H1: Pin the library to 0.2.1
 
 **Files:** `custom_components/delonghi_comfort/manifest.json`, `pyproject.toml`
 
-- [ ] **Step 1:** `manifest.json` → `"requirements": ["delonghi-comfort==0.3.0"]`.
-- [ ] **Step 2:** `pyproject.toml` → `"delonghi-comfort>=0.3.0"`.
-- [ ] **Step 3:** `uv lock && uv run --locked python -c "import delonghi_comfort; print(delonghi_comfort.async_discover)"` → prints the function (0.3.0 resolved). Commit `build: require delonghi-comfort 0.3.0`.
+- [ ] **Step 1:** `manifest.json` → `"requirements": ["delonghi-comfort==0.2.1"]`.
+- [ ] **Step 2:** `pyproject.toml` → `"delonghi-comfort>=0.2.1"`.
+- [ ] **Step 3:** `uv lock && uv run --locked python -c "import delonghi_comfort; print(delonghi_comfort.async_discover)"` → prints the function (0.2.1 resolved). Commit `build: require delonghi-comfort 0.2.1`.
 
 ### Task H2: Rewrite the config flow around `async_discover`
 

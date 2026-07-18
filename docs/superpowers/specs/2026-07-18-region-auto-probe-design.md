@@ -3,7 +3,7 @@
 - **Date:** 2026-07-18
 - **Issue:** comfort-hub/delonghi-comfort-ha#4
 - **Status:** Approved design — empirically validated against the live backend
-- **Scope:** cross-repo — `delonghi-comfort` (library, 0.3.0) then `delonghi-comfort-ha`
+- **Scope:** cross-repo — `delonghi-comfort` (library, 0.2.1) then `delonghi-comfort-ha`
 
 ## Problem
 
@@ -51,12 +51,12 @@ its own.
 
 *Alternatives considered:* (a) integration-only auto-probe — rejected: leaks the multi-client /
 `refresh_jwt` / region-list mechanics into the config flow and isn't reusable. (b) first-region-
-wins — rejected: silently hides a second region's devices. The library approach costs a 0.3.0
+wins — rejected: silently hides a second region's devices. The library approach costs a 0.2.1
 release + HA re-pin, which is cheap now that release-please + PyPI trusted publishing are in place.
 
 ---
 
-## Design — library (`delonghi-comfort` 0.3.0)
+## Design — library (`delonghi-comfort` 0.2.1)
 
 ### Public API additions (exported from `delonghi_comfort`)
 
@@ -112,15 +112,15 @@ Mock `GigyaAuth.login`/`get_jwt` and `rest.async_get_devices`. Cases:
 6. one region `TransportError`, other has devices -> returns the good ones (no raise).
 7. all regions `TransportError`, none found -> raises `TransportError`.
 
-Release as a `feat:` -> release-please cuts **0.3.0** -> PyPI.
+Release as a `feat:` -> release-please cuts **0.2.1** -> PyPI.
 
 ---
 
-## Design — HA integration (after 0.3.0 is published)
+## Design — HA integration (after 0.2.1 is published)
 
 ### Pin bump
-`manifest.json` `requirements: ["delonghi-comfort==0.3.0"]`; `pyproject.toml`
-`delonghi-comfort>=0.3.0`.
+`manifest.json` `requirements: ["delonghi-comfort==0.2.1"]`; `pyproject.toml`
+`delonghi-comfort>=0.2.1`.
 
 ### config_flow.py
 `async_step_user` calls the library discovery and branches on the tagged list:
@@ -167,8 +167,8 @@ to mock `async_discover`.
 
 ## Sequencing (cross-repo)
 1. **Library:** implement `async_discover` + `DiscoveredDevice` + `SUPPORTED_REGIONS` + tests (TDD),
-   merge as `feat:` -> release-please cuts **0.3.0** -> PyPI.
-2. **HA:** re-pin `delonghi-comfort==0.3.0`, rewrite the config-flow discovery + tests, merge.
+   merge as `feat:` -> release-please cuts **0.2.1** -> PyPI.
+2. **HA:** re-pin `delonghi-comfort==0.2.1`, rewrite the config-flow discovery + tests, merge.
    Cut a HA release afterward.
 
 ## Out of scope

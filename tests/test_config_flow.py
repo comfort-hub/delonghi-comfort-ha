@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
+from unittest.mock import ANY
 
 from delonghi_comfort import (
     AuthenticationError,
@@ -126,6 +127,18 @@ async def test_user_flow_no_devices(
     assert result["errors"] == {"base": "no_devices"}
 
 
+async def test_user_flow_already_configured(
+    hass: HomeAssistant,
+    mock_discover: AsyncMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Re-adding an already-configured appliance aborts."""
+    mock_config_entry.add_to_hass(hass)
+    result = await _submit_credentials(hass)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
 async def test_user_flow_multiple_same_region(
     hass: HomeAssistant,
     mock_discover: AsyncMock,
@@ -194,3 +207,5 @@ async def test_reauth_flow(
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
+    # Reauth must build the client with the entry's stored region.
+    mock_client.config_flow_ctor.assert_called_once_with(session=ANY, region="eu")
