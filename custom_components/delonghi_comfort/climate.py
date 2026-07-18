@@ -36,7 +36,7 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
 
     _attr_name = None
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
+    _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_ON
@@ -52,8 +52,10 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        """Return heat when the appliance is on, otherwise off."""
-        return HVACMode.HEAT if self.status.is_on else HVACMode.OFF
+        """Off when powered down, auto when following the on-board schedule, else heat."""
+        if not self.status.is_on:
+            return HVACMode.OFF
+        return HVACMode.AUTO if self.status.schedule_enabled else HVACMode.HEAT
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -83,8 +85,15 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         return self.status.target_temperature
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Turn the heater on (heat) or off."""
-        await self.coordinator.client.async_set_power(hvac_mode == HVACMode.HEAT)
+        """Switch between off, manual heat, and the on-board weekly schedule (auto)."""
+        client = self.coordinator.client
+        if hvac_mode == HVACMode.OFF:
+            await client.async_set_power(False)
+        else:
+            if not self.status.is_on:
+                await client.async_set_power(True)
+            # AUTO follows the device's weekly schedule; HEAT uses the manual setpoint.
+            await client.async_set_schedule_enabled(hvac_mode == HVACMode.AUTO)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
