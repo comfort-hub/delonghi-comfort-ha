@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.1...v0.2.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* respect the device's temperature unit (Fahrenheit support) ([#5](https://github.com/comfort-hub/delonghi-comfort-ha/issues/5)) ([4cabb37](https://github.com/comfort-hub/delonghi-comfort-ha/commit/4cabb373ed733b80bfadd69f61dd20be6144ec86))
+
 ## [0.2.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.0...v0.2.1) (2026-07-18)
 
 
