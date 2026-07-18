@@ -10,8 +10,12 @@ import pytest
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
+    ATTR_PRESET_MODE,
     DOMAIN as CLIMATE_DOMAIN,
+    PRESET_ECO,
+    PRESET_NONE,
     SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_PRESET_MODE,
     SERVICE_SET_TEMPERATURE,
     HVACMode,
 )
@@ -215,6 +219,43 @@ async def test_hvac_action_deadband_holds_through_setpoint(
     await mock_config_entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+
+
+async def test_preset_mode_reflects_eco(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """The climate preset reports eco while the power limit is on."""
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "PowerLimit": True})
+    )
+    cid = await _setup(hass, mock_config_entry)
+    state = hass.states.get(cid)
+    assert state.attributes["preset_mode"] == PRESET_ECO
+    assert set(state.attributes["preset_modes"]) == {PRESET_NONE, PRESET_ECO}
+
+
+async def test_set_preset_toggles_power_limit(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Selecting the eco/none preset toggles the library power-limit setter."""
+    cid = await _setup(hass, mock_config_entry)  # _BASE PowerLimit False -> none
+    assert hass.states.get(cid).attributes["preset_mode"] == PRESET_NONE
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_PRESET_MODE,
+        {ATTR_ENTITY_ID: cid, ATTR_PRESET_MODE: PRESET_ECO},
+        blocking=True,
+    )
+    mock_client.async_set_eco.assert_awaited_with(True)
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_PRESET_MODE,
+        {ATTR_ENTITY_ID: cid, ATTR_PRESET_MODE: PRESET_NONE},
+        blocking=True,
+    )
+    mock_client.async_set_eco.assert_awaited_with(False)
 
 
 async def test_set_temperature_rejected_in_auto(

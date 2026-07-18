@@ -40,7 +40,6 @@
   },
   "entity": {
     "switch": {
-      "eco": { "name": "Eco" },
       "night_mode": { "name": "Night mode" },
       "silent": { "name": "Silent" },
       "child_lock": { "name": "Child lock" }

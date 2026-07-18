@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import (
+    PRESET_ECO,
+    PRESET_NONE,
     ClimateEntity,
     ClimateEntityFeature,
     HVACAction,
@@ -46,9 +48,11 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     _attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT, HVACMode.AUTO]
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.PRESET_MODE
         | ClimateEntityFeature.TURN_ON
         | ClimateEntityFeature.TURN_OFF
     )
+    _attr_preset_modes = [PRESET_NONE, PRESET_ECO]
     _attr_target_temperature_step = 1
     _last_hvac_action: HVACAction | None = None
 
@@ -119,6 +123,16 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         """Return the target temperature."""
         return self.status.target_temperature
 
+    @property
+    def preset_mode(self) -> str:
+        """Eco (power-limited) vs none.
+
+        Eco (``PowerLimit``) is the only power/heat lever the firmware exposes, so it
+        maps to ``PRESET_ECO``. It is independent of the hvac mode and persists across
+        heat/auto — the on-board schedule drives setpoints, not Eco.
+        """
+        return PRESET_ECO if self.status.eco else PRESET_NONE
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch between off, manual heat, and the on-board weekly schedule (auto)."""
         client = self.coordinator.client
@@ -131,6 +145,13 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
             await self._async_guard(
                 client.async_set_schedule_enabled(hvac_mode == HVACMode.AUTO)
             )
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Enable Eco (power limit) for PRESET_ECO, disable it otherwise."""
+        await self._async_guard(
+            self.coordinator.client.async_set_eco(preset_mode == PRESET_ECO)
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:

@@ -33,19 +33,29 @@ def _entity_id(hass: HomeAssistant, platform: str, key: str) -> str:
 async def test_switch_toggle_calls_the_setter(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """Turning the eco switch on and off calls the library setter both ways."""
+    """Turning a feature switch on and off calls the library setter both ways."""
     await _setup(hass, mock_config_entry)
-    eid = _entity_id(hass, "switch", "eco")
+    eid = _entity_id(hass, "switch", "night_mode")
 
     await hass.services.async_call(
         "switch", SERVICE_TURN_ON, {ATTR_ENTITY_ID: eid}, blocking=True
     )
-    mock_client.async_set_eco.assert_awaited_with(True)
+    mock_client.async_set_night_mode.assert_awaited_with(True)
 
     await hass.services.async_call(
         "switch", SERVICE_TURN_OFF, {ATTR_ENTITY_ID: eid}, blocking=True
     )
-    mock_client.async_set_eco.assert_awaited_with(False)
+    mock_client.async_set_night_mode.assert_awaited_with(False)
+
+
+async def test_eco_is_a_preset_not_a_switch(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Eco is exposed as a climate PRESET_ECO, so no standalone switch exists."""
+    await _setup(hass, mock_config_entry)
+    assert (
+        er.async_get(hass).async_get_entity_id("switch", DOMAIN, f"{THING}_eco") is None
+    )
 
 
 async def test_brightness_select_calls_the_setter(
