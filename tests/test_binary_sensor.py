@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
-from delonghi_comfort import MachineStatus
+from delonghi_comfort import ConnectionState, MachineStatus
 
 from custom_components.delonghi_comfort.const import DOMAIN
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.helpers import entity_registry as er
 
 from .conftest import THING
@@ -61,3 +61,25 @@ async def test_alarm_categories(
     assert _state(hass, "safety_alarm") == STATE_ON  # TOS_alarm
     assert _state(hass, "overheat_alarm") == STATE_OFF  # HTMAX_* is False
     assert _state(hass, "problem_alarm") == STATE_ON  # PF_someFault (uncategorised)
+
+
+async def test_connectivity_tracks_state_and_stays_available(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """The connectivity sensor follows the live link and stays available when offline."""
+    await _setup(hass, mock_config_entry, mock_client)
+    # No CONNECTED event has fired yet, so the link reads as down.
+    assert _state(hass, "connection") == STATE_OFF
+
+    mock_client.fire_connection(ConnectionState.CONNECTED)
+    await hass.async_block_till_done()
+    assert _state(hass, "connection") == STATE_ON
+
+    # Force the coordinator to fail (heater offline): a normal entity goes
+    # unavailable, but the connectivity sensor must stay available to report state.
+    mock_client.async_get_devices = AsyncMock(return_value=[])
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert mock_config_entry.runtime_data.last_update_success is False
+    assert _state(hass, "alarm") == STATE_UNAVAILABLE
+    assert _state(hass, "connection") == STATE_ON

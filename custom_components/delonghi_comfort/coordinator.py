@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 from delonghi_comfort import (
     AuthenticationError,
+    ConnectionState,
     DelonghiComfort,
     DelonghiComfortError,
     GigyaCredentials,
@@ -46,6 +47,7 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
 
     config_entry: DelonghiConfigEntry
     capabilities: MachineCapabilities | None = None
+    connection_state: ConnectionState = ConnectionState.DISCONNECTED
 
     def __init__(self, hass: HomeAssistant, config_entry: DelonghiConfigEntry) -> None:
         """Initialise the coordinator and its underlying client."""
@@ -66,6 +68,7 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
 
     async def _async_setup(self) -> None:
         """Authenticate and open the live connection once, before the first refresh."""
+        self.client.add_connection_listener(self._handle_connection)
         try:
             await self.client.async_refresh_jwt()
             await self.client.async_connect(self.config_entry.data[CONF_THING_NAME])
@@ -104,6 +107,12 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
     def _handle_push(self, status: MachineStatus) -> None:
         """Forward a pushed status update to entities."""
         self.async_set_updated_data(status)
+
+    @callback
+    def _handle_connection(self, state: ConnectionState) -> None:
+        """Track the live-connection state and refresh dependent entities."""
+        self.connection_state = state
+        self.async_update_listeners()
 
     async def async_shutdown(self) -> None:
         """Close the live connection when the entry is unloaded."""
