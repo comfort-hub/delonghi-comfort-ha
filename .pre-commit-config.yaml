@@ -3,6 +3,8 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-added-large-files
+        # uv.lock is ~560 KB and grows with the dependency tree; allow up to 1 MB.
+        args: ["--maxkb=1024"]
       - id: check-json
       - id: check-yaml
       - id: end-of-file-fixer
