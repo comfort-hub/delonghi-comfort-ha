@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.5.0...v0.5.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* ship in-repo brand assets for HACS validation ([d086c07](https://github.com/comfort-hub/delonghi-comfort-ha/commit/d086c078e7f15863012cf1925c5587bfa7167396))
+
 ## [0.5.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.4.1...v0.5.0) (2026-07-18)
 
 
