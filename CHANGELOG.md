@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.7.2...v0.8.0) (2026-07-18)
+
+
+### Features
+
+* enforce strict typing and declare platinum quality scale ([110bcc1](https://github.com/comfort-hub/delonghi-comfort-ha/commit/110bcc1027ccabef69395cb2b08a389ac7aa66ff))
+
 ## [0.7.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.7.1...v0.7.2) (2026-07-18)
 
 
