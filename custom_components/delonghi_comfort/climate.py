@@ -11,8 +11,9 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.exceptions import ServiceValidationError
 
-from .const import MAX_TEMP, MAX_TEMP_F, MIN_TEMP, MIN_TEMP_F
+from .const import DOMAIN, MAX_TEMP, MAX_TEMP_F, MIN_TEMP, MIN_TEMP_F
 from .entity import DelonghiComfortEntity
 
 if TYPE_CHECKING:
@@ -22,6 +23,11 @@ if TYPE_CHECKING:
     from .coordinator import DelonghiComfortCoordinator, DelonghiConfigEntry
 
 PARALLEL_UPDATES = 1
+
+# Hysteresis (in the device's current unit) around the setpoint within which
+# hvac_action holds its previous value, so a room reading that hovers on a whole-degree
+# setpoint (against the 0.1° RoomTemp resolution) does not flap between heating and idle.
+HVAC_ACTION_DEADBAND = 0.5
 
 
 async def async_setup_entry(
@@ -44,6 +50,7 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         | ClimateEntityFeature.TURN_OFF
     )
     _attr_target_temperature_step = 1
+    _last_hvac_action: HVACAction | None = None
 
     def __init__(self, coordinator: DelonghiComfortCoordinator) -> None:
         """Initialise the climate entity."""
@@ -77,20 +84,30 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        """Return whether the element is actually calling for heat.
+        """Return whether the element is actually calling for heat, with hysteresis.
 
         The heater is bang-bang thermostatic — it draws full power (or the Eco cap)
         only while the room is below the setpoint, and idles otherwise. There is no
-        explicit "heating" flag in the cloud data, so derive it from room vs target
-        temperature (the same inputs the firmware's own thermostat uses).
+        explicit "heating" flag in the cloud data (PowerLevel is inert at 255), so
+        derive it from room vs target. A deadband holds the last action while the room
+        sits within ``HVAC_ACTION_DEADBAND`` of the setpoint, so a room hovering on the
+        whole-degree setpoint doesn't flip the action every update.
         """
         if not self.status.is_on:
+            self._last_hvac_action = None
             return HVACAction.OFF
         current = self.status.current_temperature
         target = self.status.target_temperature
-        if current is not None and target is not None and current < target:
-            return HVACAction.HEATING
-        return HVACAction.IDLE
+        if current is None or target is None:
+            return self._last_hvac_action or HVACAction.IDLE
+        if current <= target - HVAC_ACTION_DEADBAND:
+            action = HVACAction.HEATING
+        elif current >= target + HVAC_ACTION_DEADBAND:
+            action = HVACAction.IDLE
+        else:
+            action = self._last_hvac_action or HVACAction.IDLE
+        self._last_hvac_action = action
+        return action
 
     @property
     def current_temperature(self) -> float | None:
@@ -127,7 +144,16 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set the target temperature in the device's current unit."""
+        """Set the target temperature in the device's current unit.
+
+        Rejected while the on-board weekly schedule (AUTO) is driving the setpoint —
+        the schedule owns the temperature, so the user must switch to Heat first.
+        """
+        if self.hvac_mode == HVACMode.AUTO:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="set_temperature_in_auto",
+            )
         await self._async_guard(
             self.coordinator.client.async_set_temperature(
                 int(kwargs[ATTR_TEMPERATURE]), unit=self.status.temperature_unit
