@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from delonghi_comfort import DelonghiComfortError
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -11,6 +13,8 @@ from .const import CONF_MODEL, CONF_SERIAL_NUMBER, CONF_THING_NAME, DOMAIN, MANU
 from .coordinator import DelonghiComfortCoordinator
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from delonghi_comfort import MachineStatus
 
 
@@ -47,3 +51,14 @@ class DelonghiComfortEntity(CoordinatorEntity[DelonghiComfortCoordinator]):
         # every entity that reads ``self.status`` gets precise attribute types.
         status: MachineStatus = self.coordinator.data
         return status
+
+    async def _async_guard(self, action: Awaitable[None]) -> None:
+        """Await a control command, mapping library errors to ``HomeAssistantError``.
+
+        Keeps a failed command from surfacing as an "Unexpected error" traceback
+        (and gives HA a clean, localisable service error).
+        """
+        try:
+            await action
+        except DelonghiComfortError as err:
+            raise HomeAssistantError(f"De'Longhi command failed: {err}") from err

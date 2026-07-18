@@ -35,7 +35,7 @@ async def _setup(hass: HomeAssistant, entry: MockConfigEntry) -> str:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    return hass.states.async_entity_ids("climate")[0]
+    return str(hass.states.async_entity_ids("climate")[0])
 
 
 async def test_hvac_modes_include_auto(

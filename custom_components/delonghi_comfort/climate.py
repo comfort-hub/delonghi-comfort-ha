@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
     from .coordinator import DelonghiComfortCoordinator, DelonghiConfigEntry
 
+PARALLEL_UPDATES = 1
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -88,27 +90,29 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         """Switch between off, manual heat, and the on-board weekly schedule (auto)."""
         client = self.coordinator.client
         if hvac_mode == HVACMode.OFF:
-            await client.async_set_power(False)
+            await self._async_guard(client.async_set_power(False))
         else:
             if not self.status.is_on:
-                await client.async_set_power(True)
+                await self._async_guard(client.async_set_power(True))
             # AUTO follows the device's weekly schedule; HEAT uses the manual setpoint.
-            await client.async_set_schedule_enabled(hvac_mode == HVACMode.AUTO)
+            await self._async_guard(
+                client.async_set_schedule_enabled(hvac_mode == HVACMode.AUTO)
+            )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn the heater on."""
-        await self.coordinator.client.async_set_power(True)
+        await self._async_guard(self.coordinator.client.async_set_power(True))
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:
         """Turn the heater off."""
-        await self.coordinator.client.async_set_power(False)
+        await self._async_guard(self.coordinator.client.async_set_power(False))
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set the target temperature."""
-        await self.coordinator.client.async_set_temperature(
-            int(kwargs[ATTR_TEMPERATURE])
+        await self._async_guard(
+            self.coordinator.client.async_set_temperature(int(kwargs[ATTR_TEMPERATURE]))
         )
         await self.coordinator.async_request_refresh()
