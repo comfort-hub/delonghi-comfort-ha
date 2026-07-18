@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.4.0...v0.4.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* pin delonghi-comfort 0.3.0 + reauth/control test coverage ([#3](https://github.com/comfort-hub/delonghi-comfort-ha/issues/3), [#13](https://github.com/comfort-hub/delonghi-comfort-ha/issues/13)) ([1b00180](https://github.com/comfort-hub/delonghi-comfort-ha/commit/1b00180d22fdb75db2b01374d7f9cf65456221dd))
+
 ## [0.4.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.3.0...v0.4.0) (2026-07-18)
 
 
