@@ -48,7 +48,7 @@ def _state(hass: HomeAssistant, platform: str, key: str) -> str:
     assert eid is not None
     state = hass.states.get(eid)
     assert state is not None
-    return state.state
+    return str(state.state)
 
 
 async def test_timer_remaining_sensor(
