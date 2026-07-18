@@ -138,14 +138,16 @@ explicit_package_bases = true
 mypy_path = "."
 show_error_codes = true
 follow_imports = "normal"
-local_partial_types = true
-strict_equality = true
+# Full strict mode (quality-scale `strict-typing`). `strict = true` covers
+# disallow_untyped_* / disallow_any_generics / no_implicit_reexport /
+# warn_return_any / strict_equality / warn_unused_* / extra_checks etc.; the
+# entries below are the extras Home Assistant's own mypy profile adds on top.
+strict = true
 strict_bytes = true
+local_partial_types = true
 no_implicit_optional = true
 warn_incomplete_stub = true
-warn_redundant_casts = true
-warn_unused_configs = true
-warn_unused_ignores = true
+warn_unreachable = true
 enable_error_code = [
     "deprecated",
     "ignore-without-code",
@@ -153,15 +155,6 @@ enable_error_code = [
     "truthy-iterable",
 ]
 disable_error_code = ["annotation-unchecked", "import-not-found", "import-untyped"]
-extra_checks = false
-check_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_subclassing_any = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-disallow_untyped_defs = true
-warn_return_any = true
-warn_unreachable = true
 
 # Tests deliberately re-check a config entry's state after transitions
 # (LOADED -> NOT_LOADED). mypy narrows the enum on the first assert and then
