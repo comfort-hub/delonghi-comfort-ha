@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from delonghi_comfort import (
     Device,
+    DiscoveredDevice,
     GigyaCredentials,
     MachineCapabilities,
     MachineStatus,
@@ -82,6 +83,21 @@ def mock_config_entry() -> MockConfigEntry:
             CONF_MODEL: "TRD5WIFI",
         },
     )
+
+
+@pytest.fixture
+def mock_discover(device: Device) -> Generator[AsyncMock]:
+    """Patch config_flow.async_discover, returning one eu device by default."""
+    discover = AsyncMock(
+        return_value=(
+            GigyaCredentials("4_x", "st", "secret"),
+            [DiscoveredDevice(device=device, region="eu")],
+        )
+    )
+    with patch(
+        "custom_components.delonghi_comfort.config_flow.async_discover", discover
+    ):
+        yield discover
 
 
 @pytest.fixture
