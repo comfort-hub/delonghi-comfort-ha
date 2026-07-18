@@ -175,3 +175,56 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={CONF_EMAIL: reauth_entry.data[CONF_EMAIL]},
             errors=errors,
         )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Refresh the stored credentials and re-detect the region for the entry."""
+        errors: dict[str, str] = {}
+        reconfigure_entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            session = async_get_clientsession(self.hass)
+            try:
+                credentials, discovered = await async_discover(
+                    session,
+                    reconfigure_entry.data[CONF_EMAIL],
+                    user_input[CONF_PASSWORD],
+                )
+            except AuthenticationError:
+                errors["base"] = "invalid_auth"
+            except DelonghiComfortError:
+                errors["base"] = "cannot_connect"
+            else:
+                match = next(
+                    (
+                        d
+                        for d in discovered
+                        if d.device.thing_name
+                        == reconfigure_entry.data[CONF_THING_NAME]
+                    ),
+                    None,
+                )
+                if match is None:
+                    errors["base"] = "no_devices"
+                else:
+                    return self.async_update_reload_and_abort(
+                        reconfigure_entry,
+                        data_updates={
+                            CONF_CREDENTIALS: asdict(credentials),
+                            CONF_REGION: match.region,
+                        },
+                    )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_PASSWORD): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    )
+                }
+            ),
+            description_placeholders={CONF_EMAIL: reconfigure_entry.data[CONF_EMAIL]},
+            errors=errors,
+        )

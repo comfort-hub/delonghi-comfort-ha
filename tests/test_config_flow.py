@@ -209,3 +209,29 @@ async def test_reauth_flow(
     assert result["reason"] == "reauth_successful"
     # Reauth must build the client with the entry's stored region.
     mock_client.config_flow_ctor.assert_called_once_with(session=ANY, region="eu")
+
+
+async def test_reconfigure_flow(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_discover: AsyncMock,
+    mock_client: MagicMock,
+    device: Device,
+) -> None:
+    """Reconfigure re-discovers and updates credentials + the detected region."""
+    mock_config_entry.add_to_hass(hass)
+    # The same appliance is now discovered in the us region.
+    mock_discover.return_value = (
+        GigyaCredentials("4_x", "st2", "secret2"),
+        [DiscoveredDevice(device=device, region="us")],
+    )
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: "new-password"}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert mock_config_entry.data[CONF_REGION] == "us"

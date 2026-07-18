@@ -31,7 +31,6 @@ class DelonghiBrightness(DelonghiComfortEntity, NumberEntity):
     """The LED ring brightness level (0-3)."""
 
     _attr_translation_key = "brightness"
-    _attr_icon = "mdi:brightness-6"
     _attr_native_min_value = 0
     _attr_native_max_value = 3
     _attr_native_step = 1

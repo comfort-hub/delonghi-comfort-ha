@@ -19,6 +19,12 @@
         "data": {
           "password": "Password"
         }
+      },
+      "reconfigure": {
+        "description": "Re-enter the password for {email} to refresh the connection and re-detect the region.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
@@ -28,7 +34,8 @@
     },
     "abort": {
       "already_configured": "This appliance is already configured.",
-      "reauth_successful": "Re-authentication was successful."
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Re-configuration was successful."
     }
   },
   "entity": {
@@ -52,6 +59,9 @@
     },
     "binary_sensor": {
       "alarm": { "name": "Fault" },
+      "safety_alarm": { "name": "Safety cut-out" },
+      "overheat_alarm": { "name": "Overheat protection" },
+      "problem_alarm": { "name": "Fault (other)" },
       "timer_active": { "name": "Timer" }
     }
   }

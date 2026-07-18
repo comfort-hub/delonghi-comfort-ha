@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "number": {
+      "brightness": {
+        "default": "mdi:brightness-6"
+      }
+    }
+  }
+}
