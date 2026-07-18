@@ -58,11 +58,11 @@
       "ota_progress": { "name": "Firmware update progress" }
     },
     "binary_sensor": {
-      "alarm": { "name": "Fault" },
       "safety_alarm": { "name": "Safety cut-out" },
       "overheat_alarm": { "name": "Overheat protection" },
-      "problem_alarm": { "name": "Fault (other)" },
-      "timer_active": { "name": "Timer" }
+      "malfunction": { "name": "Malfunction" },
+      "timer_active": { "name": "Timer" },
+      "connection": { "name": "Cloud connection" }
     }
   }
 }

@@ -1,4 +1,4 @@
-"""Tests for the alarm binary sensors (aggregate + per-category)."""
+"""Tests for the per-category fault binary sensors and connectivity."""
 
 from __future__ import annotations
 
@@ -42,25 +42,30 @@ async def _setup(
     await hass.async_block_till_done()
 
 
-def _state(hass: HomeAssistant, key: str) -> str:
-    eid = er.async_get(hass).async_get_entity_id(
+def _entity_id(hass: HomeAssistant, key: str) -> str | None:
+    return er.async_get(hass).async_get_entity_id(
         "binary_sensor", DOMAIN, f"{THING}_{key}"
     )
+
+
+def _state(hass: HomeAssistant, key: str) -> str:
+    eid = _entity_id(hass, key)
     assert eid is not None
     state = hass.states.get(eid)
     assert state is not None
     return str(state.state)
 
 
-async def test_alarm_categories(
+async def test_fault_categories(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """Each alarm flag maps to its category by prefix; the aggregate ORs them."""
+    """Each alarm flag maps to exactly one category by prefix; no aggregate is exposed."""
     await _setup(hass, mock_config_entry, mock_client)
-    assert _state(hass, "alarm") == STATE_ON  # aggregate: any alarm
     assert _state(hass, "safety_alarm") == STATE_ON  # TOS_alarm
     assert _state(hass, "overheat_alarm") == STATE_OFF  # HTMAX_* is False
-    assert _state(hass, "problem_alarm") == STATE_ON  # PF_someFault (uncategorised)
+    assert _state(hass, "malfunction") == STATE_ON  # PF_someFault (uncategorised)
+    # The derivable "any fault" aggregate is intentionally not exposed.
+    assert _entity_id(hass, "alarm") is None
 
 
 async def test_connectivity_tracks_state_and_stays_available(
@@ -81,5 +86,5 @@ async def test_connectivity_tracks_state_and_stays_available(
     await mock_config_entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
     assert mock_config_entry.runtime_data.last_update_success is False
-    assert _state(hass, "alarm") == STATE_UNAVAILABLE
+    assert _state(hass, "malfunction") == STATE_UNAVAILABLE
     assert _state(hass, "connection") == STATE_ON
