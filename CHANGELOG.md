@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.2...v0.3.0) (2026-07-18)
+
+
+### Features
+
+* add timer telemetry + LAN-IP/firmware/OTA diagnostics ([#11](https://github.com/comfort-hub/delonghi-comfort-ha/issues/11)) ([85db148](https://github.com/comfort-hub/delonghi-comfort-ha/commit/85db148e89f86f2c08db8df8e9963e99a89e78a2))
+
 ## [0.2.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.1...v0.2.2) (2026-07-18)
 
 
