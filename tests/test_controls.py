@@ -5,11 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.delonghi_comfort.const import DOMAIN
-from homeassistant.const import (
-    ATTR_ENTITY_ID,
-    SERVICE_TURN_OFF,
-    SERVICE_TURN_ON,
-)
+from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
 from homeassistant.helpers import entity_registry as er
 
 from .conftest import THING
