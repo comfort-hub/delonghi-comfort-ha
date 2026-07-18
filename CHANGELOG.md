@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.6.0...v0.7.0) (2026-07-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* switch.eco removed; use climate.set_preset_mode (eco).
+
+### Features
+
+* expose Eco as a climate preset instead of a switch ([5c4acb3](https://github.com/comfort-hub/delonghi-comfort-ha/commit/5c4acb3afda5698fd14ca6f6863438d30ef8ec58)), closes [#43](https://github.com/comfort-hub/delonghi-comfort-ha/issues/43)
+
 ## [0.6.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.5.1...v0.6.0) (2026-07-18)
 
 
