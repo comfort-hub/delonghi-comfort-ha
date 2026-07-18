@@ -85,12 +85,14 @@ SENSORS: tuple[DelonghiSensorDescription, ...] = (
         key="lan_ip",
         translation_key="lan_ip",
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda status: status.lan_ip,
     ),
     DelonghiSensorDescription(
         key="firmware_partition",
         translation_key="firmware_partition",
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda status: status.running_partition,
     ),
     DelonghiSensorDescription(
@@ -98,6 +100,7 @@ SENSORS: tuple[DelonghiSensorDescription, ...] = (
         translation_key="ota_progress",
         native_unit_of_measurement=PERCENTAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         value_fn=lambda status: status.ota_progress,
     ),
 )

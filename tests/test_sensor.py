@@ -67,11 +67,36 @@ async def test_timer_active_binary_sensor(
     assert _state(hass, "binary_sensor", "timer_active") == STATE_ON
 
 
-async def test_diagnostic_sensors(
+_LOW_VALUE_DIAGNOSTICS = ("lan_ip", "firmware_partition", "ota_progress")
+
+
+async def test_low_value_diagnostics_disabled_by_default(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """LAN IP, firmware partition and OTA progress are surfaced."""
+    """LAN IP, firmware partition and OTA progress are registered but off by default."""
     await _setup(hass, mock_config_entry, mock_client)
+    registry = er.async_get(hass)
+    for key in _LOW_VALUE_DIAGNOSTICS:
+        eid = registry.async_get_entity_id("sensor", DOMAIN, f"{THING}_{key}")
+        assert eid is not None, key
+        entry = registry.async_get(eid)
+        assert entry is not None
+        assert entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION, key
+        assert hass.states.get(eid) is None  # disabled -> no state
+
+
+async def test_low_value_diagnostics_report_when_enabled(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Once a user enables them, the diagnostic sensors report their values."""
+    await _setup(hass, mock_config_entry, mock_client)
+    registry = er.async_get(hass)
+    for key in _LOW_VALUE_DIAGNOSTICS:
+        eid = registry.async_get_entity_id("sensor", DOMAIN, f"{THING}_{key}")
+        assert eid is not None
+        registry.async_update_entity(eid, disabled_by=None)
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
     assert _state(hass, "sensor", "lan_ip") == "192.168.1.50"
     assert _state(hass, "sensor", "firmware_partition") == "1"
     assert _state(hass, "sensor", "ota_progress") == "30"
