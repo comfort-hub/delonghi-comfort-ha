@@ -11,7 +11,7 @@
   "issue_tracker": "https://github.com/comfort-hub/delonghi-comfort-ha/issues",
   "quality_scale": "bronze",
   "requirements": [
-    "delonghi-comfort==0.2.2"
+    "delonghi-comfort==0.3.0"
   ],
   "version": "0.4.0"
 }

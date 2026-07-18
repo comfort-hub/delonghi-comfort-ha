@@ -162,3 +162,29 @@ async def test_set_temperature_on_fahrenheit_device(
     mock_client.async_set_temperature.assert_awaited_once_with(
         70, unit=TemperatureUnit.FAHRENHEIT
     )
+
+
+async def test_hvac_action_heating_below_setpoint(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """hvac_action is heating while the room is below the setpoint."""
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "RoomTemp": 180, "TempSetPoint": 22}
+        )
+    )
+    cid = await _setup(hass, mock_config_entry)
+    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+
+
+async def test_hvac_action_idle_at_setpoint(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """hvac_action is idle once the room has reached the setpoint."""
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "RoomTemp": 230, "TempSetPoint": 22}
+        )
+    )
+    cid = await _setup(hass, mock_config_entry)
+    assert hass.states.get(cid).attributes["hvac_action"] == "idle"
