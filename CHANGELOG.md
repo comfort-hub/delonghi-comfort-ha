@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.2.0...v0.2.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* auto-discover the account region across all regions ([#4](https://github.com/comfort-hub/delonghi-comfort-ha/issues/4)) ([a2f5e41](https://github.com/comfort-hub/delonghi-comfort-ha/commit/a2f5e410e9cffb835247f90af7229b1b82ccc2b0))
+
 ## [0.2.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.1.0...v0.2.0) (2026-07-18)
 
 
