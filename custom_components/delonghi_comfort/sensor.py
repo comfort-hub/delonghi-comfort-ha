@@ -11,7 +11,12 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 
 from .entity import DelonghiComfortEntity
 
@@ -21,6 +26,7 @@ if TYPE_CHECKING:
     from delonghi_comfort import MachineStatus
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+    from homeassistant.helpers.typing import StateType
 
     from .coordinator import DelonghiComfortCoordinator, DelonghiConfigEntry
 
@@ -35,7 +41,7 @@ def _scaled_temp(status: MachineStatus, key: str) -> float | None:
 class DelonghiSensorDescription(SensorEntityDescription):
     """Describes a De'Longhi Comfort sensor."""
 
-    value_fn: Callable[[MachineStatus], float | None]
+    value_fn: Callable[[MachineStatus], StateType]
 
 
 SENSORS: tuple[DelonghiSensorDescription, ...] = (
@@ -68,6 +74,32 @@ SENSORS: tuple[DelonghiSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda status: _scaled_temp(status, "UiBoard_PcbTemp"),
     ),
+    DelonghiSensorDescription(
+        key="timer_remaining",
+        translation_key="timer_remaining",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        value_fn=lambda status: status.timer_remaining,
+    ),
+    DelonghiSensorDescription(
+        key="lan_ip",
+        translation_key="lan_ip",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda status: status.lan_ip,
+    ),
+    DelonghiSensorDescription(
+        key="firmware_partition",
+        translation_key="firmware_partition",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda status: status.running_partition,
+    ),
+    DelonghiSensorDescription(
+        key="ota_progress",
+        translation_key="ota_progress",
+        native_unit_of_measurement=PERCENTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda status: status.ota_progress,
+    ),
 )
 
 
@@ -99,6 +131,6 @@ class DelonghiSensor(DelonghiComfortEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> StateType:
         """Return the sensor value."""
         return self.entity_description.value_fn(self.status)
