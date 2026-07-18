@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.4.1...v0.5.0) (2026-07-18)
+
+
+### Features
+
+* add a cloud-connection diagnostic binary sensor ([9a5ca48](https://github.com/comfort-hub/delonghi-comfort-ha/commit/9a5ca488cf6604c92fdb5d0d064d50bf69cb03f5))
+
 ## [0.4.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.4.0...v0.4.1) (2026-07-18)
 
 
