@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.7.1...v0.7.2) (2026-07-18)
+
+
+### Bug Fixes
+
+* translate command-failure exception and refresh docs ([a5058a0](https://github.com/comfort-hub/delonghi-comfort-ha/commit/a5058a04a31b1f3df74527360bc4e0d164b4f0a5))
+
 ## [0.7.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.7.0...v0.7.1) (2026-07-18)
 
 
