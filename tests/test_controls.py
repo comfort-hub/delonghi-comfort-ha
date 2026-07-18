@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.delonghi_comfort.const import DOMAIN
-from homeassistant.const import ATTR_ENTITY_ID, SERVICE_TURN_OFF, SERVICE_TURN_ON
+from homeassistant.const import (
+    ATTR_ENTITY_ID,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
+    EntityCategory,
+)
 from homeassistant.helpers import entity_registry as er
 
 from .conftest import THING
@@ -46,6 +51,18 @@ async def test_switch_toggle_calls_the_setter(
         "switch", SERVICE_TURN_OFF, {ATTR_ENTITY_ID: eid}, blocking=True
     )
     mock_client.async_set_night_mode.assert_awaited_with(False)
+
+
+async def test_feature_switches_are_config(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Night mode, silent and child lock are stored preferences (config category)."""
+    await _setup(hass, mock_config_entry)
+    registry = er.async_get(hass)
+    for key in ("night_mode", "silent", "child_lock"):
+        entry = registry.async_get(_entity_id(hass, "switch", key))
+        assert entry is not None
+        assert entry.entity_category is EntityCategory.CONFIG, key
 
 
 async def test_eco_is_a_preset_not_a_switch(
