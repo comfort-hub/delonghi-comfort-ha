@@ -7,6 +7,6 @@
   "integration_type": "device",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/comfort-hub/delonghi-comfort-ha/issues",
-  "requirements": ["delonghi-comfort==0.1.0"],
+  "requirements": ["delonghi-comfort==0.2.0"],
   "version": "0.1.0"
 }
