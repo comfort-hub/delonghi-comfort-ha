@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from delonghi_comfort import (
     Device,
+    DiscoveredDevice,
     GigyaCredentials,
     MachineCapabilities,
     MachineStatus,
@@ -85,6 +86,21 @@ def mock_config_entry() -> MockConfigEntry:
 
 
 @pytest.fixture
+def mock_discover(device: Device) -> Generator[AsyncMock]:
+    """Patch config_flow.async_discover, returning one eu device by default."""
+    discover = AsyncMock(
+        return_value=(
+            GigyaCredentials("4_x", "st", "secret"),
+            [DiscoveredDevice(device=device, region="eu")],
+        )
+    )
+    with patch(
+        "custom_components.delonghi_comfort.config_flow.async_discover", discover
+    ):
+        yield discover
+
+
+@pytest.fixture
 def mock_client(device: Device) -> Generator[MagicMock]:
     """Patch DelonghiComfort in both modules that construct it."""
     client = MagicMock()
@@ -127,6 +143,9 @@ def mock_client(device: Device) -> Generator[MagicMock]:
         patch(
             "custom_components.delonghi_comfort.config_flow.DelonghiComfort",
             return_value=client,
-        ),
+        ) as config_flow_ctor,
     ):
+        # Expose the config-flow constructor so tests can assert its call args
+        # (e.g. reauth passing the entry's stored region).
+        client.config_flow_ctor = config_flow_ctor
         yield client

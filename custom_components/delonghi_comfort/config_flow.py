@@ -11,8 +11,9 @@ from delonghi_comfort import (
     AuthenticationError,
     DelonghiComfort,
     DelonghiComfortError,
-    Device,
+    DiscoveredDevice,
     GigyaCredentials,
+    async_discover,
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -52,25 +53,18 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialise transient flow state."""
         self._email: str = ""
         self._credentials: GigyaCredentials | None = None
-        self._devices: list[Device] = []
-
-    async def _authenticate(
-        self, email: str, password: str
-    ) -> tuple[GigyaCredentials, list[Device]]:
-        client = DelonghiComfort(session=async_get_clientsession(self.hass))
-        credentials = await client.async_login(email, password)
-        devices = await client.async_get_devices()
-        return credentials, devices
+        self._discovered: list[DiscoveredDevice] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle the initial step: credentials."""
+        """Handle the initial step: credentials, then auto-discover the region."""
         errors: dict[str, str] = {}
         if user_input is not None:
+            session = async_get_clientsession(self.hass)
             try:
-                credentials, devices = await self._authenticate(
-                    user_input[CONF_EMAIL], user_input[CONF_PASSWORD]
+                credentials, discovered = await async_discover(
+                    session, user_input[CONF_EMAIL], user_input[CONF_PASSWORD]
                 )
             except AuthenticationError:
                 errors["base"] = "invalid_auth"
@@ -79,11 +73,11 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 self._email = user_input[CONF_EMAIL]
                 self._credentials = credentials
-                self._devices = devices
-                if not devices:
+                self._discovered = discovered
+                if not discovered:
                     errors["base"] = "no_devices"
-                elif len(devices) == 1:
-                    return await self._create_entry(devices[0])
+                elif len(discovered) == 1:
+                    return await self._create_entry(discovered[0])
                 else:
                     return await self.async_step_device()
         return self.async_show_form(
@@ -95,15 +89,21 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Let the user pick which appliance to add when several exist."""
         if user_input is not None:
-            device = next(
-                d for d in self._devices if d.thing_name == user_input[CONF_THING_NAME]
+            chosen = next(
+                d
+                for d in self._discovered
+                if d.device.thing_name == user_input[CONF_THING_NAME]
             )
-            return await self._create_entry(device)
+            return await self._create_entry(chosen)
+        # Only disambiguate by region when the devices actually span regions.
+        show_region = len({d.region for d in self._discovered}) > 1
         options = [
             selector.SelectOptionDict(
-                value=d.thing_name, label=f"{d.model} ({d.serial_number})"
+                value=d.device.thing_name,
+                label=f"{d.device.model} ({d.device.serial_number})"
+                + (f" — {d.region.upper()}" if show_region else ""),
             )
-            for d in self._devices
+            for d in self._discovered
         ]
         schema = vol.Schema(
             {
@@ -114,8 +114,9 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="device", data_schema=schema)
 
-    async def _create_entry(self, device: Device) -> ConfigFlowResult:
+    async def _create_entry(self, discovered: DiscoveredDevice) -> ConfigFlowResult:
         assert self._credentials is not None
+        device = discovered.device
         await self.async_set_unique_id(device.thing_name)
         self._abort_if_unique_id_configured()
         return self.async_create_entry(
@@ -124,7 +125,7 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_EMAIL: self._email,
                 CONF_CREDENTIALS: asdict(self._credentials),
                 CONF_THING_NAME: device.thing_name,
-                CONF_REGION: "eu",
+                CONF_REGION: discovered.region,
                 CONF_SERIAL_NUMBER: device.serial_number,
                 CONF_MODEL: device.model,
             },
@@ -143,8 +144,12 @@ class DelonghiComfortConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         reauth_entry = self._get_reauth_entry()
         if user_input is not None:
+            client = DelonghiComfort(
+                session=async_get_clientsession(self.hass),
+                region=reauth_entry.data[CONF_REGION],
+            )
             try:
-                credentials, _ = await self._authenticate(
+                credentials = await client.async_login(
                     reauth_entry.data[CONF_EMAIL], user_input[CONF_PASSWORD]
                 )
             except AuthenticationError:
