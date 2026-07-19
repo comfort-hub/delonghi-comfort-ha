@@ -22,6 +22,7 @@ from .entity import DelonghiComfortEntity
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
 
     from delonghi_comfort import MachineStatus
     from homeassistant.core import HomeAssistant
@@ -41,7 +42,7 @@ def _scaled_temp(status: MachineStatus, key: str) -> float | None:
 class DelonghiSensorDescription(SensorEntityDescription):
     """Describes a De'Longhi Comfort sensor."""
 
-    value_fn: Callable[[MachineStatus], StateType]
+    value_fn: Callable[[MachineStatus], StateType | datetime]
 
 
 SENSORS: tuple[DelonghiSensorDescription, ...] = (
@@ -103,6 +104,16 @@ SENSORS: tuple[DelonghiSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda status: status.ota_progress,
     ),
+    # When the device last reported to its cloud shadow. The heater reports
+    # telemetry sparsely (rarely while switched off), so an old value here means
+    # the temperatures are stale rather than live — surface that instead of hiding it.
+    DelonghiSensorDescription(
+        key="last_reported",
+        translation_key="last_reported",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda status: status.last_reported_at,
+    ),
 )
 
 
@@ -134,6 +145,6 @@ class DelonghiSensor(DelonghiComfortEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> StateType:
+    def native_value(self) -> StateType | datetime:
         """Return the sensor value."""
         return self.entity_description.value_fn(self.status)

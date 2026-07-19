@@ -62,7 +62,8 @@
       "timer_remaining": { "name": "Timer remaining" },
       "lan_ip": { "name": "LAN IP" },
       "firmware_partition": { "name": "Firmware partition" },
-      "ota_progress": { "name": "Firmware update progress" }
+      "ota_progress": { "name": "Firmware update progress" },
+      "last_reported": { "name": "Last reported" }
     },
     "binary_sensor": {
       "safety_alarm": { "name": "Safety cut-out" },
