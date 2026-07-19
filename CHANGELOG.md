@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.10.0...v0.10.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* don't trigger reauth on a transient cloud 403 ([#68](https://github.com/comfort-hub/delonghi-comfort-ha/issues/68)) ([fe77766](https://github.com/comfort-hub/delonghi-comfort-ha/commit/fe777667090ebab9e746355b428525bb000cbda0))
+
 ## [0.10.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.9.1...v0.10.0) (2026-07-19)
 
 
