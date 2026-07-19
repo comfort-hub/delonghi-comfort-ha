@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.9.1...v0.10.0) (2026-07-19)
+
+
+### Features
+
+* self-healing auth and proactive JWT refresh ([#66](https://github.com/comfort-hub/delonghi-comfort-ha/issues/66)) ([f69284a](https://github.com/comfort-hub/delonghi-comfort-ha/commit/f69284af7459888cd906137150f925949cfdbe5f))
+
 ## [0.9.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.9.0...v0.9.1) (2026-07-19)
 
 
