@@ -118,19 +118,48 @@ async def test_expired_jwt_self_heals_without_reauth(
     )
 
 
-async def test_auth_rejection_triggers_reauth(
+async def test_dead_session_triggers_reauth(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """A persistent auth rejection (re-mint doesn't help) starts a reauth flow."""
+    """Reauth starts only when the session is dead — i.e. re-minting the JWT fails."""
     await _setup(hass, mock_config_entry)
     mock_client.async_get_devices = AsyncMock(
-        side_effect=AuthenticationError("token expired")
+        side_effect=AuthenticationError("token rejected")
+    )
+    mock_client.async_refresh_jwt = AsyncMock(
+        side_effect=AuthenticationError("session revoked")
     )
 
     await mock_config_entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
 
     assert any(
+        flow["context"]["source"] == config_entries.SOURCE_REAUTH
+        for flow in hass.config_entries.flow.async_progress()
+    )
+
+
+async def test_transient_cloud_403_fails_soft_not_reauth(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A transient cloud 403 (a freshly-minted token is still rejected) fails soft.
+
+    Re-minting succeeds — the session is fine — so a persisting rejection is a
+    flaky-cloud transient, not bad credentials: mark the update failed (retry next
+    poll), never nag the user for reauth.
+    """
+    await _setup(hass, mock_config_entry)
+    mock_client.async_get_devices = AsyncMock(
+        side_effect=AuthenticationError("devices request unauthorized (HTTP 403)")
+    )
+    # async_refresh_jwt keeps its default (succeeds): the session is valid.
+
+    coordinator = mock_config_entry.runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert coordinator.last_update_success is False  # transient -> unavailable, retries
+    assert not any(
         flow["context"]["source"] == config_entries.SOURCE_REAUTH
         for flow in hass.config_entries.flow.async_progress()
     )
