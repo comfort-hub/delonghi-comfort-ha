@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.9.0...v0.9.1) (2026-07-19)
+
+
+### Performance Improvements
+
+* skip redundant entity updates on unchanged shadow polls ([#64](https://github.com/comfort-hub/delonghi-comfort-ha/issues/64)) ([9e8506a](https://github.com/comfort-hub/delonghi-comfort-ha/commit/9e8506ab33178d9452de5c28ab3b215af140bc1a))
+
 ## [0.9.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.8.0...v0.9.0) (2026-07-19)
 
 
