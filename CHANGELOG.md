@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.10.1...v0.10.2) (2026-07-19)
+
+
+### Bug Fixes
+
+* require delonghi-comfort 0.3.6 (transient-retry + off-loop TLS) ([#70](https://github.com/comfort-hub/delonghi-comfort-ha/issues/70)) ([648c4d6](https://github.com/comfort-hub/delonghi-comfort-ha/commit/648c4d67b812071d674aed23065ccb6ac65ab9b6))
+
 ## [0.10.1](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.10.0...v0.10.1) (2026-07-19)
 
 
