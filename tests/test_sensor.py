@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
@@ -65,6 +66,25 @@ async def test_timer_active_binary_sensor(
     """The timer-active binary sensor is on while a timer runs."""
     await _setup(hass, mock_config_entry, mock_client)
     assert _state(hass, "binary_sensor", "timer_active") == STATE_ON
+
+
+async def test_last_reported_sensor(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """The last-reported sensor exposes when the device last updated its shadow."""
+    ts = 1_700_000_000
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            _STATUS, metadata={"RoomTemp": {"timestamp": ts}}
+        )
+    )
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert (
+        _state(hass, "sensor", "last_reported")
+        == datetime.fromtimestamp(ts, tz=UTC).isoformat()
+    )
 
 
 _LOW_VALUE_DIAGNOSTICS = ("lan_ip", "firmware_partition", "ota_progress")

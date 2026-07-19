@@ -26,6 +26,11 @@ async def async_get_config_entry_diagnostics(
     return {
         "entry_data": async_redact_data(dict(entry.data), TO_REDACT),
         "status": dict(coordinator.data.raw) if coordinator.data else None,
+        # Per-field report timestamps (metadata.reported) — reveals how stale each
+        # reported value is, i.e. when the heater last reported it to the cloud.
+        "status_metadata": dict(coordinator.data.metadata)
+        if coordinator.data
+        else None,
         "capabilities": (
             async_redact_data(dict(caps.raw), CAPS_REDACT) if caps else None
         ),
