@@ -25,7 +25,7 @@ from homeassistant.components.climate import (
     SERVICE_SET_TEMPERATURE,
     HVACMode,
 )
-from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE, SERVICE_TURN_ON
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
@@ -289,6 +289,85 @@ async def test_confirmed_command_clears_the_issue(
         SERVICE_SET_TEMPERATURE,
         {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 24},
         blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_turn_on_is_optimistically_auto_when_schedule_enabled(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """turn_on optimistically shows the mode the device will resolve to (auto).
+
+    With the on-board schedule enabled, powering on resolves to AUTO. A hardcoded
+    optimistic HEAT would never reconcile against the reported auto and would raise a
+    false Repair issue for a command that actually succeeded.
+    """
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "DeviceStatus": 0, "ScheduleEnable": True}
+        )
+    )
+    cid = await _setup(hass, mock_config_entry)
+    assert hass.states.get(cid).state == HVACMode.OFF
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: cid}, blocking=True
+    )
+    assert hass.states.get(cid).state == HVACMode.AUTO  # not a bare HEAT
+
+
+async def test_issue_not_cleared_by_unrelated_update(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """An unrelated telemetry push must not clear the unconfirmed-command issue.
+
+    The warning should persist until a command is genuinely confirmed, not until the
+    next routine idle poll happens to arrive.
+    """
+    cid = await _setup(hass, mock_config_entry)
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # Room temperature changes but the setpoint is still 22 (command still unapplied).
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "RoomTemp": 250})
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_noop_command_does_not_raise_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A command matching the current state must not raise a false issue on timeout.
+
+    The device echoes nothing back (the shadow is unchanged), so no reconciling update
+    arrives; the timeout must re-check truth and see the command already satisfied.
+    """
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 22},  # already 22 — a no-op
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
     )
     await hass.async_block_till_done()
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

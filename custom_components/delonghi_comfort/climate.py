@@ -175,11 +175,33 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         self._cancel_confirm_timeout()
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
 
+    def _reconcile(self) -> None:
+        """Clear each optimistic override the reported status now confirms."""
+        if (
+            self._optimistic_hvac_mode is not None
+            and self._real_hvac_mode() == self._optimistic_hvac_mode
+        ):
+            self._optimistic_hvac_mode = None
+        if (
+            self._optimistic_target is not None
+            and self.status.target_temperature == self._optimistic_target
+        ):
+            self._optimistic_target = None
+        if (
+            self._optimistic_preset is not None
+            and self._real_preset_mode() == self._optimistic_preset
+        ):
+            self._optimistic_preset = None
+
     @callback
     def _confirm_timeout(self, _now: datetime) -> None:
         """Revert a never-confirmed optimistic value to truth and flag it for the user."""
         self._confirm_unsub = None
+        # A no-op command, or an echo whose unchanged shadow was deduped by the
+        # coordinator, leaves no reconciling update — re-check truth before alarming.
+        self._reconcile()
         if not self._has_pending():
+            self._confirm_all()
             return
         self._optimistic_hvac_mode = None
         self._optimistic_target = None
@@ -203,22 +225,11 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Clear each optimistic override the device has now confirmed, then write state."""
-        if (
-            self._optimistic_hvac_mode is not None
-            and self._real_hvac_mode() == self._optimistic_hvac_mode
-        ):
-            self._optimistic_hvac_mode = None
-        if (
-            self._optimistic_target is not None
-            and self.status.target_temperature == self._optimistic_target
-        ):
-            self._optimistic_target = None
-        if (
-            self._optimistic_preset is not None
-            and self._real_preset_mode() == self._optimistic_preset
-        ):
-            self._optimistic_preset = None
-        if not self._has_pending():
+        had_pending = self._has_pending()
+        self._reconcile()
+        # Only clear the Repair issue on a real pending -> confirmed transition, so a
+        # routine idle poll (nothing pending) never erases a still-valid warning.
+        if had_pending and not self._has_pending():
             self._confirm_all()
         super()._handle_coordinator_update()
 
@@ -246,9 +257,13 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
-        """Turn the heater on."""
+        """Turn the heater on, into whichever mode the device will resolve to."""
         await self._async_guard(self.coordinator.client.async_set_power(True))
-        self._set_optimistic(hvac_mode=HVACMode.HEAT)
+        # Powering on resumes AUTO if the on-board schedule is enabled, else manual HEAT.
+        # Optimistically show that resolved mode so it reconciles against the echo.
+        self._set_optimistic(
+            hvac_mode=HVACMode.AUTO if self.status.schedule_enabled else HVACMode.HEAT
+        )
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:

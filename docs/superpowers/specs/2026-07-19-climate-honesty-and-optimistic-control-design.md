@@ -118,3 +118,11 @@ Two failure modes, handled distinctly:
   notification storms; it is not per-command.
 - Reverting to the device's last-reported value on timeout means the display returns to *truth*
   (possibly itself stale) — the `last_reported` sensor continues to expose that staleness.
+- On timeout the entity **re-reconciles** before alarming: a no-op command, or an echo whose
+  unchanged shadow the coordinator deduped (`always_update=False`), is recognised as already
+  satisfied and clears silently — no false issue. The Repair issue is cleared only on a genuine
+  pending→confirmed transition (or unload), never by a routine idle poll.
+- Known minor edge: if the user changes the device's unit (°C↔°F) within the confirm window of a
+  setpoint command, the pending target (an integer in the command-time unit) can't match the
+  reported setpoint in the new unit, so it reverts and raises one (accurate-display, spurious-
+  warning) issue. This requires a unit flip inside a 60 s window and is left as-is.
