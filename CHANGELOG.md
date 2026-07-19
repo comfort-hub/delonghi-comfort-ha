@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.10.2...v0.11.0) (2026-07-19)
+
+
+### Features
+
+* climate honesty & optimistic control (hvac_action, optimistic writes, unconfirmed-command repair) ([#72](https://github.com/comfort-hub/delonghi-comfort-ha/issues/72)) ([6003820](https://github.com/comfort-hub/delonghi-comfort-ha/commit/60038200225674b17d1b9039ffaeb12525e0f861))
+
 ## [0.10.2](https://github.com/comfort-hub/delonghi-comfort-ha/compare/v0.10.1...v0.10.2) (2026-07-19)
 
 
