@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 from delonghi_comfort import AuthenticationError, Device
 from delonghi_comfort.exceptions import CommandTimeoutError
 import pytest
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.delonghi_comfort.const import JWT_REFRESH_INTERVAL_SECONDS
 from homeassistant import config_entries
 from homeassistant.components.climate import (
     ATTR_TEMPERATURE,
@@ -17,6 +20,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -75,10 +79,49 @@ async def test_command_failure_raises_home_assistant_error(
     assert err.value.translation_key == "command_failed"
 
 
+_ONLINE_DEVICE = Device.from_dict(
+    {
+        "machineName": "EUPDL01COM000000004875",
+        "serialNumber": "90:70:69:90:93:74",
+        "machineModel": "TRD5WIFI",
+        "status": "ONLINE",
+    }
+)
+
+
+async def test_expired_jwt_self_heals_without_reauth(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """An expired JWT is re-minted and retried within the poll — no reauth, no blip."""
+    await _setup(hass, mock_config_entry)
+
+    attempts = {"n": 0}
+
+    async def _devices() -> list[Device]:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            raise AuthenticationError("token expired")
+        return [_ONLINE_DEVICE]
+
+    mock_client.async_get_devices = AsyncMock(side_effect=_devices)
+    mock_client.async_refresh_jwt.reset_mock()
+
+    coordinator = mock_config_entry.runtime_data
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert coordinator.last_update_success is True  # recovered in-place
+    mock_client.async_refresh_jwt.assert_awaited()  # re-minted the token
+    assert not any(
+        flow["context"]["source"] == config_entries.SOURCE_REAUTH
+        for flow in hass.config_entries.flow.async_progress()
+    )
+
+
 async def test_auth_rejection_triggers_reauth(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """An auth rejection during the poll (an expired JWT) starts a reauth flow."""
+    """A persistent auth rejection (re-mint doesn't help) starts a reauth flow."""
     await _setup(hass, mock_config_entry)
     mock_client.async_get_devices = AsyncMock(
         side_effect=AuthenticationError("token expired")
@@ -91,3 +134,18 @@ async def test_auth_rejection_triggers_reauth(
         flow["context"]["source"] == config_entries.SOURCE_REAUTH
         for flow in hass.config_entries.flow.async_progress()
     )
+
+
+async def test_proactive_jwt_refresh_runs_on_schedule(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """The JWT is proactively re-minted on a timer, before it can expire."""
+    await _setup(hass, mock_config_entry)
+    mock_client.async_refresh_jwt.reset_mock()
+
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=JWT_REFRESH_INTERVAL_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+
+    mock_client.async_refresh_jwt.assert_awaited()

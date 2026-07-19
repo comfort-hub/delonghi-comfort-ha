@@ -7,7 +7,7 @@ polls on an interval as a safety net.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import TYPE_CHECKING
 
@@ -24,6 +24,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -31,6 +32,7 @@ from .const import (
     CONF_REGION,
     CONF_THING_NAME,
     DOMAIN,
+    JWT_REFRESH_INTERVAL_SECONDS,
     SCAN_INTERVAL_SECONDS,
 )
 
@@ -69,6 +71,7 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
             credentials=credentials,
         )
         self._unsub_push: Callable[[], None] | None = None
+        self._unsub_jwt: Callable[[], None] | None = None
 
     async def _async_setup(self) -> None:
         """Authenticate and open the live connection once, before the first refresh."""
@@ -82,16 +85,44 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
         except DelonghiComfortError as err:
             raise UpdateFailed(str(err)) from err
         self._unsub_push = self.client.add_status_listener(self._handle_push)
+        self._unsub_jwt = async_track_time_interval(
+            self.hass,
+            self._async_refresh_token,
+            timedelta(seconds=JWT_REFRESH_INTERVAL_SECONDS),
+        )
 
     async def _async_update_data(self) -> MachineStatus:
         """Poll the current status (the live connection also pushes updates)."""
         try:
-            await self._async_verify_online()
-            return await self.client.async_get_status()
-        except AuthenticationError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
+            return await self._async_fetch()
+        except AuthenticationError:
+            # The JWT may have lapsed. Re-mint it from the stored credentials and
+            # retry once, so an expired token self-heals in place instead of
+            # surfacing as a reauth prompt (and a spell of unavailability). Only a
+            # genuinely dead session — the refresh itself failing — escalates.
+            try:
+                await self.client.async_refresh_jwt()
+                return await self._async_fetch()
+            except AuthenticationError as err:
+                raise ConfigEntryAuthFailed(str(err)) from err
+            except DelonghiComfortError as err:
+                raise UpdateFailed(str(err)) from err
         except DelonghiComfortError as err:
             raise UpdateFailed(str(err)) from err
+
+    async def _async_fetch(self) -> MachineStatus:
+        """Verify connectivity and read the current status shadow."""
+        await self._async_verify_online()
+        return await self.client.async_get_status()
+
+    async def _async_refresh_token(self, _now: datetime) -> None:
+        """Proactively re-mint the JWT so reconnects never hit an expired token."""
+        try:
+            await self.client.async_refresh_jwt()
+        except DelonghiComfortError as err:
+            # Transient failures are fine — the next poll's self-heal or the next
+            # scheduled refresh recovers; a dead session surfaces via reauth there.
+            _LOGGER.debug("proactive JWT refresh failed: %s", err)
 
     async def _async_verify_online(self) -> None:
         """Raise ``UpdateFailed`` when the heater is offline.
@@ -120,6 +151,9 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
 
     async def async_shutdown(self) -> None:
         """Close the live connection when the entry is unloaded."""
+        if self._unsub_jwt is not None:
+            self._unsub_jwt()
+            self._unsub_jwt = None
         if self._unsub_push is not None:
             self._unsub_push()
             self._unsub_push = None
