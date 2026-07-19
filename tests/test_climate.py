@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 from delonghi_comfort import MachineStatus, TemperatureUnit
 import pytest
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.delonghi_comfort.const import (
+    COMMAND_CONFIRM_TIMEOUT_SECONDS,
+    DOMAIN,
+)
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
@@ -21,6 +27,8 @@ from homeassistant.components.climate import (
 )
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 if TYPE_CHECKING:
@@ -227,6 +235,63 @@ async def test_optimistic_clears_once_device_confirms(
     await mock_config_entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 26
+
+
+async def test_unconfirmed_command_reverts_and_raises_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A command the device never confirms reverts to truth and raises a Repair issue."""
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25  # optimistic
+
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 22  # reverted to truth
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_confirmed_command_clears_the_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A later confirmed command clears the unconfirmed-command Repair issue."""
+    cid = await _setup(hass, mock_config_entry)
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    # First command is never confirmed -> issue raised.
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # Next command, and the device confirms it -> issue cleared.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 24})
+    )
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 24},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_preset_mode_reflects_eco(

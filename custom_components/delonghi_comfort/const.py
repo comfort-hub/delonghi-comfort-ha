@@ -23,6 +23,11 @@ SCAN_INTERVAL_SECONDS: Final = 60
 # token, so an expiry never surfaces as a reauth prompt / unavailability.
 JWT_REFRESH_INTERVAL_SECONDS: Final = 6 * 60 * 60
 
+# How long to trust an optimistically-shown command value before the device confirms
+# it. On expiry the entity reverts to the reported state and raises a Repair issue, so
+# a command that was accepted but never applied is never left looking successful.
+COMMAND_CONFIRM_TIMEOUT_SECONDS: Final = 60
+
 # The Dragon 5 accepts whole-degree setpoints in this range. The firmware caps the
 # setpoint at 28 °C (higher values are rejected — matches the physical dial's ceiling).
 MIN_TEMP: Final = 15

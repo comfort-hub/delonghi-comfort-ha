@@ -14,12 +14,23 @@ from homeassistant.components.climate import (
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_call_later
 
-from .const import DOMAIN, MAX_TEMP, MAX_TEMP_F, MIN_TEMP, MIN_TEMP_F
+from .const import (
+    COMMAND_CONFIRM_TIMEOUT_SECONDS,
+    DOMAIN,
+    MAX_TEMP,
+    MAX_TEMP_F,
+    MIN_TEMP,
+    MIN_TEMP_F,
+)
 from .entity import DelonghiComfortEntity
 
 if TYPE_CHECKING:
-    from homeassistant.core import HomeAssistant
+    from datetime import datetime
+
+    from homeassistant.core import CALLBACK_TYPE, HomeAssistant
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
     from .coordinator import DelonghiComfortCoordinator, DelonghiConfigEntry
@@ -53,6 +64,7 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     _optimistic_hvac_mode: HVACMode | None = None
     _optimistic_target: int | None = None
     _optimistic_preset: str | None = None
+    _confirm_unsub: CALLBACK_TYPE | None = None
 
     def __init__(self, coordinator: DelonghiComfortCoordinator) -> None:
         """Initialise the climate entity."""
@@ -142,11 +154,51 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
             or self._optimistic_preset is not None
         )
 
+    @property
+    def _issue_id(self) -> str:
+        return f"command_unconfirmed_{self.coordinator.config_entry.entry_id}"
+
     def _schedule_confirm_timeout(self) -> None:
-        """Start/restart the confirm timeout (filled in by the confirm-timeout change)."""
+        """Start/restart the window for the device to confirm the optimistic value."""
+        self._cancel_confirm_timeout()
+        self._confirm_unsub = async_call_later(
+            self.hass, COMMAND_CONFIRM_TIMEOUT_SECONDS, self._confirm_timeout
+        )
+
+    def _cancel_confirm_timeout(self) -> None:
+        if self._confirm_unsub is not None:
+            self._confirm_unsub()
+            self._confirm_unsub = None
 
     def _confirm_all(self) -> None:
-        """Handle all pending commands being confirmed (filled in by Task 3)."""
+        """Stop the timer and clear the issue once every override is confirmed."""
+        self._cancel_confirm_timeout()
+        ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
+
+    @callback
+    def _confirm_timeout(self, _now: datetime) -> None:
+        """Revert a never-confirmed optimistic value to truth and flag it for the user."""
+        self._confirm_unsub = None
+        if not self._has_pending():
+            return
+        self._optimistic_hvac_mode = None
+        self._optimistic_target = None
+        self._optimistic_preset = None
+        self.async_write_ha_state()
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="command_unconfirmed",
+        )
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel the confirm timer and clear the issue on unload."""
+        self._cancel_confirm_timeout()
+        ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
+        await super().async_will_remove_from_hass()
 
     @callback
     def _handle_coordinator_update(self) -> None:
