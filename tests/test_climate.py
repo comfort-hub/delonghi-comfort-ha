@@ -170,55 +170,21 @@ async def test_set_temperature_on_fahrenheit_device(
     )
 
 
-async def test_hvac_action_heating_below_setpoint(
+async def test_hvac_action_is_omitted(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """hvac_action is heating while the room is below the setpoint."""
+    """With no heating flag in the cloud, we don't claim an hvac_action.
+
+    The reading is event-driven and often stale, so deriving heating/idle from it
+    would be a guess; peers with no flag (evohome, Adax, Tuya, LG ThinQ) return None.
+    """
     mock_client.async_get_status = AsyncMock(
         return_value=MachineStatus.from_reported(
             {**_BASE, "RoomTemp": 180, "TempSetPoint": 22}
         )
     )
     cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
-
-
-async def test_hvac_action_idle_at_setpoint(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
-) -> None:
-    """hvac_action is idle once the room has reached the setpoint."""
-    mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 230, "TempSetPoint": 22}
-        )
-    )
-    cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "idle"
-
-
-async def test_hvac_action_deadband_holds_through_setpoint(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
-) -> None:
-    """A room drifting just past the setpoint holds the last action (no flapping)."""
-    # Start clearly below the setpoint -> heating.
-    mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 210, "TempSetPoint": 22}
-        )
-    )
-    cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
-
-    # Drift to 22.1 °C: within the deadband of the 22 °C setpoint. A stateless
-    # current<target rule would flip to idle; the deadband must hold heating.
-    mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 221, "TempSetPoint": 22}
-        )
-    )
-    await mock_config_entry.runtime_data.async_refresh()
-    await hass.async_block_till_done()
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+    assert hass.states.get(cid).attributes.get("hvac_action") is None
 
 
 async def test_preset_mode_reflects_eco(
