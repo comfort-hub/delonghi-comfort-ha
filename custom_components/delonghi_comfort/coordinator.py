@@ -57,6 +57,10 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
             name=DOMAIN,
             config_entry=config_entry,
             update_interval=timedelta(seconds=SCAN_INTERVAL_SECONDS),
+            # The heater's shadow is static between control events, so the poll
+            # usually re-reads an identical MachineStatus. Skip the redundant
+            # entity writes on unchanged data (MachineStatus compares by value).
+            always_update=False,
         )
         credentials = GigyaCredentials(**config_entry.data[CONF_CREDENTIALS])
         self.client = DelonghiComfort(
