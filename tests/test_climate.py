@@ -187,6 +187,48 @@ async def test_hvac_action_is_omitted(
     assert hass.states.get(cid).attributes.get("hvac_action") is None
 
 
+async def test_set_temperature_is_optimistic(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """The commanded setpoint shows immediately, before the device echoes it back."""
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25  # optimistic
+
+
+async def test_optimistic_clears_once_device_confirms(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """Once the reported setpoint matches, the override clears and later changes show."""
+    cid = await _setup(hass, mock_config_entry)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    # Device confirms 25 -> the override is cleared.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 25})
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25
+
+    # A later external change is no longer masked by a stuck override.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 26})
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 26
+
+
 async def test_preset_mode_reflects_eco(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:

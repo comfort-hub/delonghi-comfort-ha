@@ -12,6 +12,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
 
 from .const import DOMAIN, MAX_TEMP, MAX_TEMP_F, MIN_TEMP, MIN_TEMP_F
@@ -48,6 +49,10 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     )
     _attr_preset_modes = [PRESET_NONE, PRESET_ECO]
     _attr_target_temperature_step = 1
+    # Optimistically-commanded values shown until the device echoes them back.
+    _optimistic_hvac_mode: HVACMode | None = None
+    _optimistic_target: int | None = None
+    _optimistic_preset: str | None = None
 
     def __init__(self, coordinator: DelonghiComfortCoordinator) -> None:
         """Initialise the climate entity."""
@@ -72,12 +77,22 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         """Maximum settable setpoint in the device's current unit."""
         return MAX_TEMP if self.status.celsius else MAX_TEMP_F
 
-    @property
-    def hvac_mode(self) -> HVACMode:
-        """Off when powered down, auto when following the on-board schedule, else heat."""
+    def _real_hvac_mode(self) -> HVACMode:
+        """Return the hvac mode implied by the reported status (ignoring overrides)."""
         if not self.status.is_on:
             return HVACMode.OFF
         return HVACMode.AUTO if self.status.schedule_enabled else HVACMode.HEAT
+
+    def _real_preset_mode(self) -> str:
+        """Return the preset implied by the reported status (ignoring overrides)."""
+        return PRESET_ECO if self.status.eco else PRESET_NONE
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        """Optimistic override while a command is pending, else the reported mode."""
+        if self._optimistic_hvac_mode is not None:
+            return self._optimistic_hvac_mode
+        return self._real_hvac_mode()
 
     @property
     def current_temperature(self) -> float | None:
@@ -86,18 +101,74 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
 
     @property
     def target_temperature(self) -> int | None:
-        """Return the target temperature."""
+        """Optimistic override while a command is pending, else the reported setpoint."""
+        if self._optimistic_target is not None:
+            return self._optimistic_target
         return self.status.target_temperature
 
     @property
     def preset_mode(self) -> str:
-        """Eco (power-limited) vs none.
+        """Optimistic override while a command is pending, else the reported preset.
 
         Eco (``PowerLimit``) is the only power/heat lever the firmware exposes, so it
         maps to ``PRESET_ECO``. It is independent of the hvac mode and persists across
         heat/auto — the on-board schedule drives setpoints, not Eco.
         """
-        return PRESET_ECO if self.status.eco else PRESET_NONE
+        if self._optimistic_preset is not None:
+            return self._optimistic_preset
+        return self._real_preset_mode()
+
+    def _set_optimistic(
+        self,
+        *,
+        hvac_mode: HVACMode | None = None,
+        target: int | None = None,
+        preset: str | None = None,
+    ) -> None:
+        """Show the just-commanded value immediately, pending the device's echo."""
+        if hvac_mode is not None:
+            self._optimistic_hvac_mode = hvac_mode
+        if target is not None:
+            self._optimistic_target = target
+        if preset is not None:
+            self._optimistic_preset = preset
+        self.async_write_ha_state()
+        self._schedule_confirm_timeout()
+
+    def _has_pending(self) -> bool:
+        return (
+            self._optimistic_hvac_mode is not None
+            or self._optimistic_target is not None
+            or self._optimistic_preset is not None
+        )
+
+    def _schedule_confirm_timeout(self) -> None:
+        """Start/restart the confirm timeout (filled in by the confirm-timeout change)."""
+
+    def _confirm_all(self) -> None:
+        """Handle all pending commands being confirmed (filled in by Task 3)."""
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Clear each optimistic override the device has now confirmed, then write state."""
+        if (
+            self._optimistic_hvac_mode is not None
+            and self._real_hvac_mode() == self._optimistic_hvac_mode
+        ):
+            self._optimistic_hvac_mode = None
+        if (
+            self._optimistic_target is not None
+            and self.status.target_temperature == self._optimistic_target
+        ):
+            self._optimistic_target = None
+        if (
+            self._optimistic_preset is not None
+            and self._real_preset_mode() == self._optimistic_preset
+        ):
+            self._optimistic_preset = None
+        if not self._has_pending():
+            self._confirm_all()
+        super()._handle_coordinator_update()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Switch between off, manual heat, and the on-board weekly schedule (auto)."""
@@ -111,6 +182,7 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
             await self._async_guard(
                 client.async_set_schedule_enabled(hvac_mode == HVACMode.AUTO)
             )
+        self._set_optimistic(hvac_mode=hvac_mode)
         await self.coordinator.async_request_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -118,16 +190,19 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
         await self._async_guard(
             self.coordinator.client.async_set_eco(preset_mode == PRESET_ECO)
         )
+        self._set_optimistic(preset=preset_mode)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn the heater on."""
         await self._async_guard(self.coordinator.client.async_set_power(True))
+        self._set_optimistic(hvac_mode=HVACMode.HEAT)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self) -> None:
         """Turn the heater off."""
         await self._async_guard(self.coordinator.client.async_set_power(False))
+        self._set_optimistic(hvac_mode=HVACMode.OFF)
         await self.coordinator.async_request_refresh()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -146,4 +221,5 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
                 int(kwargs[ATTR_TEMPERATURE]), unit=self.status.temperature_unit
             )
         )
+        self._set_optimistic(target=int(kwargs[ATTR_TEMPERATURE]))
         await self.coordinator.async_request_refresh()
