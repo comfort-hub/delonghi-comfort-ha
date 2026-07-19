@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
 from delonghi_comfort import MachineStatus, TemperatureUnit
 import pytest
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.delonghi_comfort.const import (
+    COMMAND_CONFIRM_TIMEOUT_SECONDS,
+    DOMAIN,
+)
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
@@ -19,8 +25,10 @@ from homeassistant.components.climate import (
     SERVICE_SET_TEMPERATURE,
     HVACMode,
 )
-from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE
+from homeassistant.const import ATTR_ENTITY_ID, ATTR_TEMPERATURE, SERVICE_TURN_ON
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
 if TYPE_CHECKING:
@@ -170,55 +178,199 @@ async def test_set_temperature_on_fahrenheit_device(
     )
 
 
-async def test_hvac_action_heating_below_setpoint(
+async def test_hvac_action_is_omitted(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """hvac_action is heating while the room is below the setpoint."""
+    """With no heating flag in the cloud, we don't claim an hvac_action.
+
+    The reading is event-driven and often stale, so deriving heating/idle from it
+    would be a guess; peers with no flag (evohome, Adax, Tuya, LG ThinQ) return None.
+    """
     mock_client.async_get_status = AsyncMock(
         return_value=MachineStatus.from_reported(
             {**_BASE, "RoomTemp": 180, "TempSetPoint": 22}
         )
     )
     cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+    assert hass.states.get(cid).attributes.get("hvac_action") is None
 
 
-async def test_hvac_action_idle_at_setpoint(
+async def test_set_temperature_is_optimistic(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """hvac_action is idle once the room has reached the setpoint."""
-    mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 230, "TempSetPoint": 22}
-        )
+    """The commanded setpoint shows immediately, before the device echoes it back."""
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
     )
-    cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "idle"
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25  # optimistic
 
 
-async def test_hvac_action_deadband_holds_through_setpoint(
+async def test_optimistic_clears_once_device_confirms(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
-    """A room drifting just past the setpoint holds the last action (no flapping)."""
-    # Start clearly below the setpoint -> heating.
-    mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 210, "TempSetPoint": 22}
-        )
-    )
+    """Once the reported setpoint matches, the override clears and later changes show."""
     cid = await _setup(hass, mock_config_entry)
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
-
-    # Drift to 22.1 °C: within the deadband of the 22 °C setpoint. A stateless
-    # current<target rule would flip to idle; the deadband must hold heating.
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    # Device confirms 25 -> the override is cleared.
     mock_client.async_get_status = AsyncMock(
-        return_value=MachineStatus.from_reported(
-            {**_BASE, "RoomTemp": 221, "TempSetPoint": 22}
-        )
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 25})
     )
     await mock_config_entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
-    assert hass.states.get(cid).attributes["hvac_action"] == "heating"
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25
+
+    # A later external change is no longer masked by a stuck override.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 26})
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 26
+
+
+async def test_unconfirmed_command_reverts_and_raises_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A command the device never confirms reverts to truth and raises a Repair issue."""
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 25  # optimistic
+
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cid).attributes[ATTR_TEMPERATURE] == 22  # reverted to truth
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_confirmed_command_clears_the_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A later confirmed command clears the unconfirmed-command Repair issue."""
+    cid = await _setup(hass, mock_config_entry)
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    # First command is never confirmed -> issue raised.
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # Next command, and the device confirms it -> issue cleared.
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "TempSetPoint": 24})
+    )
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 24},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_turn_on_is_optimistically_auto_when_schedule_enabled(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """turn_on optimistically shows the mode the device will resolve to (auto).
+
+    With the on-board schedule enabled, powering on resolves to AUTO. A hardcoded
+    optimistic HEAT would never reconcile against the reported auto and would raise a
+    false Repair issue for a command that actually succeeded.
+    """
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {**_BASE, "DeviceStatus": 0, "ScheduleEnable": True}
+        )
+    )
+    cid = await _setup(hass, mock_config_entry)
+    assert hass.states.get(cid).state == HVACMode.OFF
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN, SERVICE_TURN_ON, {ATTR_ENTITY_ID: cid}, blocking=True
+    )
+    assert hass.states.get(cid).state == HVACMode.AUTO  # not a bare HEAT
+
+
+async def test_issue_not_cleared_by_unrelated_update(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """An unrelated telemetry push must not clear the unconfirmed-command issue.
+
+    The warning should persist until a command is genuinely confirmed, not until the
+    next routine idle poll happens to arrive.
+    """
+    cid = await _setup(hass, mock_config_entry)
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 25},
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+    # Room temperature changes but the setpoint is still 22 (command still unapplied).
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported({**_BASE, "RoomTemp": 250})
+    )
+    await mock_config_entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is not None
+
+
+async def test_noop_command_does_not_raise_issue(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
+) -> None:
+    """A command matching the current state must not raise a false issue on timeout.
+
+    The device echoes nothing back (the shadow is unchanged), so no reconciling update
+    arrives; the timeout must re-check truth and see the command already satisfied.
+    """
+    cid = await _setup(hass, mock_config_entry)  # reported TempSetPoint stays 22
+    issue_id = f"command_unconfirmed_{mock_config_entry.entry_id}"
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        SERVICE_SET_TEMPERATURE,
+        {ATTR_ENTITY_ID: cid, ATTR_TEMPERATURE: 22},  # already 22 — a no-op
+        blocking=True,
+    )
+    async_fire_time_changed(
+        hass, dt_util.utcnow() + timedelta(seconds=COMMAND_CONFIRM_TIMEOUT_SECONDS + 1)
+    )
+    await hass.async_block_till_done()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_preset_mode_reflects_eco(

@@ -80,5 +80,11 @@
     "command_failed": {
       "message": "The De'Longhi command failed: {error}"
     }
+  },
+  "issues": {
+    "command_unconfirmed": {
+      "title": "Heater didn't confirm a command",
+      "description": "The heater accepted a recent command, but its reported state hasn't changed to match, so the command may not have taken effect. The displayed state has been returned to what the heater last reported. Try the command again, or check the heater itself."
+    }
   }
 }
