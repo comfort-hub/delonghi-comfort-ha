@@ -943,15 +943,15 @@ wheels = [
 
 [[package]]
 name = "delonghi-comfort"
-version = "0.3.4"
+version = "0.3.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiomqtt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/97/88/ca818425103e6262e2f215191bd181c0bb18ff2956bd61b9cd2e50baad3e/delonghi_comfort-0.3.4.tar.gz", hash = "sha256:4745751829065e02d31253c11800cc6c42e535fb15c5c7bfd814931dcf3b2afa", size = 107035, upload-time = "2026-07-19T06:35:46.041Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/c4/f295ee9290b7385f0df2186456308ee09ceddaa63c36413747ef8df52cd8/delonghi_comfort-0.3.5.tar.gz", hash = "sha256:a6041e856127d082d70a19118ddd909f2788f437e330a04b94bde8a6f82c1889", size = 107315, upload-time = "2026-07-19T07:07:31.762Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/23/6ae5952fccd5adc7df2cc6931187677572701a73e21c50803fc798077af7/delonghi_comfort-0.3.4-py3-none-any.whl", hash = "sha256:b534538cfe7e32240d233ea29a30ab98fd181c269939e6a004705a4d4b4eeb42", size = 35041, upload-time = "2026-07-19T06:35:44.789Z" },
+    { url = "https://files.pythonhosted.org/packages/47/d2/99b8eb5d3d3a7b8a650b561e1d719194a75632b2bdc3ff74e3d067ba8b2d/delonghi_comfort-0.3.5-py3-none-any.whl", hash = "sha256:04ee12283403195ca678ad00c9ca095b2dc427d83e642b6801cf399661aece1c", size = 35115, upload-time = "2026-07-19T07:07:30.682Z" },
 ]
 
 [[package]]
@@ -975,7 +975,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "delonghi-comfort", specifier = ">=0.3.4" },
+    { name = "delonghi-comfort", specifier = ">=0.3.5" },
     { name = "homeassistant", specifier = ">=2025.9.0" },
 ]
 

@@ -18,6 +18,11 @@ CONF_MODEL: Final = "model"
 # safety-net refresh in case a push is missed.
 SCAN_INTERVAL_SECONDS: Final = 60
 
+# How often to proactively re-mint the Gigya JWT. The token is long-lived, but
+# refreshing well ahead of expiry keeps every hourly MQTT reconnect using a valid
+# token, so an expiry never surfaces as a reauth prompt / unavailability.
+JWT_REFRESH_INTERVAL_SECONDS: Final = 6 * 60 * 60
+
 # The Dragon 5 accepts whole-degree setpoints in this range. The firmware caps the
 # setpoint at 28 °C (higher values are rejected — matches the physical dial's ceiling).
 MIN_TEMP: Final = 15
