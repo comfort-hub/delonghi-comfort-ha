@@ -96,15 +96,20 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
         try:
             return await self._async_fetch()
         except AuthenticationError:
-            # The JWT may have lapsed. Re-mint it from the stored credentials and
-            # retry once, so an expired token self-heals in place instead of
-            # surfacing as a reauth prompt (and a spell of unavailability). Only a
-            # genuinely dead session — the refresh itself failing — escalates.
+            # An auth rejection is usually a lapsed JWT, but the De'Longhi cloud
+            # also throws transient 403s. Re-mint from the stored credentials: if
+            # minting itself fails the session is genuinely dead (-> reauth). If
+            # minting succeeds but the fresh token is *still* rejected, it is a
+            # transient cloud failure, not bad credentials — fail soft and retry
+            # next poll rather than nagging the user to reauthenticate.
             try:
                 await self.client.async_refresh_jwt()
-                return await self._async_fetch()
             except AuthenticationError as err:
                 raise ConfigEntryAuthFailed(str(err)) from err
+            except DelonghiComfortError as err:
+                raise UpdateFailed(str(err)) from err
+            try:
+                return await self._async_fetch()
             except DelonghiComfortError as err:
                 raise UpdateFailed(str(err)) from err
         except DelonghiComfortError as err:
