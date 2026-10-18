@@ -25,7 +25,7 @@ first frame: {"Message":"AUTH","SerialNo":"<serial>","AuthToken":"<Gigya JWT>"}
 on success:  {"Response":"OK","ConnectionId":<int>}
 ```
 
-The wire code lives in a **shared** `appliance_kit.web_socket` module that the heater app also
+The wire protocol comes from an SDK that the heater app also
 bundles — so the heater *might* expose the same server. It does. It just refuses to talk.
 
 ---
@@ -47,27 +47,19 @@ bundles — so the heater *might* expose the same server. It does. It just refus
   `{"Message":<echoed>,"Response":"UNAUTHORIZED"}`: the handler is functional and gates every
   message behind an authentication that, for the heater, never succeeds.
 
-### 2. Decompilation — the app disables LAN for heaters
+### 2. App analysis — LAN is switched off for heaters
 
-Decompiling the Android app (Flutter front-end over a Java/Kotlin `appliance_kit` SDK) shows the
-LAN path is gated by a boolean:
+Inspecting the Android app (a Flutter front-end over a native SDK shared with the coffee-machine
+app) showed that opening the LAN socket is conditional on a single on/off setting. When it is off,
+the app logs that LAN-to-LAN is disabled and never creates the socket.
 
-```java
-// AWSCloudApplianceConnection.initWebSocketConnection(String token, boolean lan2lanEnabled)
-if (!lan2lanEnabled) {
-    log("LAN-to-LAN is disabled by configuration.");
-    return;                 // the LAN socket is never created
-}
-```
+- The setting is chosen inside the app itself, not fetched per device: neither the REST device
+  model nor the capabilities shadow carries any `lan2lan` field, so it is not a toggle we can flip
+  via the API.
+- When enabled, the app would send the same AUTH frame we sent, using the same Gigya token it uses
+  for the cloud MQTT connection.
 
-- `lan2lanEnabled` is decided in the Flutter layer and passed down through the Pigeon bridge.
-- It has **no per-device cloud source**: the REST device model and the `MachineCapabilities`
-  shadow carry no `lan2lan` field, so it is not a toggle we can flip via the API.
-- The native AUTH frame construction (`WebSocketClient.sendAuth`) is byte-identical to what we
-  sent, and the JWT it uses is the same Gigya token used for the cloud MQTT connection.
-
-The coffee firmware + app enable `lan2lan`; the heater app ships the same SDK code with the flag
-**off**.
+The coffee firmware + app enable `lan2lan`; the heater app ships the same SDK with it **off**.
 
 ### 3. Honeypot — the app never even tries
 
@@ -89,7 +81,7 @@ connection and look closed) found **only port 443**:
 ### 5. SoftAP / BLE provisioning — only sets Wi-Fi
 
 The device supports Espressif **unified provisioning** (SoftAP/BLE) when factory-reset. The app's
-provisioning code (`EspPairableAppliance`) does exactly two things:
+provisioning flow does exactly two things:
 
 - `provision(ssid, passphrase)` → the stock Espressif `espDevice.provision()` call, sending
   **only** the target Wi-Fi credentials.
