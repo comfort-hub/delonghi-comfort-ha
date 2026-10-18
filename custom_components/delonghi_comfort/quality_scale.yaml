@@ -73,9 +73,7 @@ rules:
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
-  repair-issues:
-    status: exempt
-    comment: No user-actionable repair conditions beyond reauthentication.
+  repair-issues: done
   stale-devices:
     status: exempt
     comment: One config entry maps to exactly one appliance.

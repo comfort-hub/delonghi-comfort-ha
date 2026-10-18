@@ -6,24 +6,37 @@
         "data": {
           "email": "Email",
           "password": "Password"
+        },
+        "data_description": {
+          "email": "The email address you use to sign in to the My Comfort Hub app.",
+          "password": "Your My Comfort Hub password. It is used once to sign in and is not stored."
         }
       },
       "device": {
         "description": "Select the appliance to add.",
         "data": {
           "thing_name": "Appliance"
+        },
+        "data_description": {
+          "thing_name": "The heater to add. Add each heater as its own entry."
         }
       },
       "reauth_confirm": {
         "description": "Re-enter the password for {email}.",
         "data": {
           "password": "Password"
+        },
+        "data_description": {
+          "password": "Your current My Comfort Hub password."
         }
       },
       "reconfigure": {
         "description": "Re-enter the password for {email} to refresh the connection and re-detect the region.",
         "data": {
           "password": "Password"
+        },
+        "data_description": {
+          "password": "Your current My Comfort Hub password."
         }
       }
     },
