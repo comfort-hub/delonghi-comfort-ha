@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from delonghi_comfort import DelonghiComfortError
+from homeassistant.const import UnitOfTemperature
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -51,6 +52,15 @@ class DelonghiComfortEntity(CoordinatorEntity[DelonghiComfortCoordinator]):
         # every entity that reads ``self.status`` gets precise attribute types.
         status: MachineStatus = self.coordinator.data
         return status
+
+    @property
+    def device_temperature_unit(self) -> UnitOfTemperature:
+        """The unit the heater is currently displaying."""
+        return (
+            UnitOfTemperature.CELSIUS
+            if self.status.celsius
+            else UnitOfTemperature.FAHRENHEIT
+        )
 
     async def _async_guard(self, action: Awaitable[None]) -> None:
         """Await a control command, mapping library errors to ``HomeAssistantError``.

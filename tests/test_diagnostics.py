@@ -25,6 +25,11 @@ async def test_diagnostics_redacts_secrets_and_includes_status(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
     """Diagnostics expose the live shadow but redact credentials/identifiers."""
+    mock_client.async_get_status = AsyncMock(
+        return_value=MachineStatus.from_reported(
+            {"DeviceStatus": 1, "TempSetPoint": 22, "LanIpAddress": "192.168.1.50"}
+        )
+    )
     mock_config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
@@ -34,6 +39,8 @@ async def test_diagnostics_redacts_secrets_and_includes_status(
     # Secrets are redacted.
     assert diag["entry_data"]["credentials"] == _REDACTED
     assert diag["entry_data"]["email"] == _REDACTED
+    assert diag["entry_data"]["thing_name"] == _REDACTED
+    assert diag["status"]["LanIpAddress"] == _REDACTED
     # The live status is included for debugging.
     assert diag["status"]["DeviceStatus"] == 1
     assert diag["status"]["TempSetPoint"] == 22

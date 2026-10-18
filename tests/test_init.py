@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
-from delonghi_comfort import MachineStatus
+from delonghi_comfort import AuthenticationError, MachineStatus, TransportError
 
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -103,3 +103,33 @@ async def test_idle_poll_does_not_notify_listeners(
     await hass.async_block_till_done()
 
     assert calls == 0  # unchanged data -> no listener notifications
+
+
+async def test_setup_retries_on_transport_error(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: MagicMock,
+) -> None:
+    """A transient connect failure leaves the entry retrying, not failed."""
+    mock_client.async_connect.side_effect = TransportError("boom")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_auth_failure_starts_reauth(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: MagicMock,
+) -> None:
+    """A rejected session at setup errors the entry and starts one reauth flow."""
+    mock_client.async_refresh_jwt.side_effect = AuthenticationError("rejected")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    flows = hass.config_entries.flow.async_progress()
+    assert [f["context"]["source"] for f in flows] == [SOURCE_REAUTH]

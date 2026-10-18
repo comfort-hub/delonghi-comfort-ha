@@ -12,6 +12,7 @@ from delonghi_comfort import (
     GigyaCredentials,
     TransportError,
 )
+import pytest
 
 from custom_components.delonghi_comfort.const import (
     CONF_REGION,
@@ -235,3 +236,71 @@ async def test_reconfigure_flow(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert mock_config_entry.data[CONF_REGION] == "us"
+
+
+@pytest.mark.parametrize(
+    ("exc", "error"),
+    [
+        (AuthenticationError("bad"), "invalid_auth"),
+        (TransportError("down"), "cannot_connect"),
+    ],
+)
+async def test_reauth_errors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_client: MagicMock,
+    exc: Exception,
+    error: str,
+) -> None:
+    """Reauth re-shows the form with the mapped error."""
+    mock_client.async_login.side_effect = exc
+    mock_config_entry.add_to_hass(hass)
+    result = await mock_config_entry.start_reauth_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: "pw"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reauth_confirm"
+    assert result["errors"] == {"base": error}
+
+
+@pytest.mark.parametrize(
+    ("exc", "error"),
+    [
+        (AuthenticationError("bad"), "invalid_auth"),
+        (TransportError("down"), "cannot_connect"),
+    ],
+)
+async def test_reconfigure_errors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_discover: AsyncMock,
+    exc: Exception,
+    error: str,
+) -> None:
+    """Reconfigure re-shows the form with the mapped error."""
+    mock_discover.side_effect = exc
+    mock_config_entry.add_to_hass(hass)
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: "pw"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    assert result["errors"] == {"base": error}
+
+
+async def test_reconfigure_no_devices(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_discover: AsyncMock,
+) -> None:
+    """Reconfigure errors when the entry's appliance is no longer on the account."""
+    mock_discover.return_value = (_CREDENTIALS, [])
+    mock_config_entry.add_to_hass(hass)
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: "pw"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "no_devices"}

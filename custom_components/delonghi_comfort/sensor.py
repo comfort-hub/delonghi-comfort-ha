@@ -43,6 +43,8 @@ class DelonghiSensorDescription(SensorEntityDescription):
     """Describes a De'Longhi Comfort sensor."""
 
     value_fn: Callable[[MachineStatus], StateType | datetime]
+    # Unit follows the heater's display setting instead of being fixed.
+    device_unit: bool = False
 
 
 SENSORS: tuple[DelonghiSensorDescription, ...] = (
@@ -50,7 +52,7 @@ SENSORS: tuple[DelonghiSensorDescription, ...] = (
         key="room_temperature",
         translation_key="room_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_unit=True,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
         value_fn=lambda status: status.current_temperature,
@@ -148,3 +150,10 @@ class DelonghiSensor(DelonghiComfortEntity, SensorEntity):
     def native_value(self) -> StateType | datetime:
         """Return the sensor value."""
         return self.entity_description.value_fn(self.status)
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Return the unit, following the heater's display unit if so configured."""
+        if self.entity_description.device_unit:
+            return self.device_temperature_unit
+        return self.entity_description.native_unit_of_measurement

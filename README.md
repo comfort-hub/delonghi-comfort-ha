@@ -13,9 +13,9 @@ It uses a proper `DataUpdateCoordinator` with a live push connection (AWS IoT MQ
 
 ## Entities
 
-- **Climate** — power (off / heat / auto), target temperature, measured room temperature, and
-  a heating/idle action. It also carries an **Eco** preset (the heater's power-limit mode). *Auto*
-  follows the heater's on-board weekly schedule, so the setpoint is read-only there.
+- **Climate** — power (off / heat / auto), target temperature, measured room temperature. It also carries an **Eco** preset (the heater's power-limit mode). *Auto*
+  follows the heater's on-board weekly schedule, so the setpoint is read-only there. The heater does not report whether its element is
+  heating, so no heating/idle action is shown.
 - **Switches** *(config)* — Night mode, Silent, Child lock.
 - **Select** *(config)* — LED display brightness (Off / Low / Medium / High).
 - **Sensors** — room temperature and timer remaining; plus diagnostics that are **disabled by
@@ -26,14 +26,54 @@ It uses a proper `DataUpdateCoordinator` with a live push connection (AWS IoT MQ
 For driving the heater from an external room thermostat (e.g. Versatile Thermostat) with
 minimal cycling and no relay noise, see [`docs/control-tuning.md`](docs/control-tuning.md).
 
+## Supported devices
+
+My Comfort Hub heaters. Tested on the Dragon 5 Connect `TRD51024WIFI.G`.
+
 ## Installation (HACS)
 
-1. HACS → Integrations → ⋮ → **Custom repositories**.
-2. Add `https://github.com/comfort-hub/delonghi-comfort-ha` as an **Integration**.
-3. Install **De'Longhi Comfort**, then restart Home Assistant.
-4. **Settings → Devices & Services → Add Integration → De'Longhi Comfort**.
-5. Sign in with your My Comfort Hub email + password. The password is not stored — only a
+1. HACS → search **De'Longhi Comfort** → **Download**, then restart Home Assistant.
+2. **Settings → Devices & Services → Add Integration → De'Longhi Comfort**.
+3. Sign in with your My Comfort Hub email + password. The password is not stored — only a
    long-lived Gigya session token, refreshed automatically (with a reauth prompt if revoked).
+
+## How data updates
+
+State arrives by live MQTT push, plus a 60 s poll that also checks the heater is online.
+
+## Known limitations
+
+- Cloud-only: there is no local control path (see below).
+- The setpoint is read-only in **Auto**.
+- The °F range is 41–82.
+- Telemetry is sparse while the heater is off (see the **Last reported** sensor).
+- No heating/idle action.
+- If the heater does not confirm a command, a Repair issue is raised.
+
+## Use cases
+
+- Schedules driven from Home Assistant automations.
+- Presence-based heating.
+- Control from an external thermostat — see [`docs/control-tuning.md`](docs/control-tuning.md).
+
+## Troubleshooting
+
+- Entities unavailable: the heater is offline in the De'Longhi app.
+- A reauthentication prompt usually means your password changed or the session was revoked; if your password is unchanged, re-entering it is safe.
+- Download diagnostics from the device page when reporting a problem.
+- Enable debug logging:
+
+  ```yaml
+  logger:
+    logs:
+      custom_components.delonghi_comfort: debug
+      delonghi_comfort: debug
+  ```
+
+## Removal
+
+**Settings → Devices & Services → De'Longhi Comfort → ⋮ → Delete**. Then remove it in HACS and
+restart Home Assistant.
 
 ## Why cloud, not local?
 
