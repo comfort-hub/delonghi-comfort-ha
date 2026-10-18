@@ -146,6 +146,14 @@ class DelonghiComfortCoordinator(DataUpdateCoordinator[MachineStatus]):
     @callback
     def _handle_push(self, status: MachineStatus) -> None:
         """Forward a pushed status update to entities."""
+        if not self.last_update_success:
+            # A reconnect re-reads the stale cloud shadow; only a poll can prove the heater is back.
+            self.config_entry.async_create_background_task(
+                self.hass,
+                self.async_request_refresh(),
+                "delonghi_comfort push refresh",
+            )
+            return
         self.async_set_updated_data(status)
 
     @callback
