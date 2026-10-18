@@ -59,7 +59,7 @@ State arrives by live MQTT push, plus a 60 s poll that also checks the heater is
 ## Troubleshooting
 
 - Entities unavailable: the heater is offline in the De'Longhi app.
-- A reauth prompt means your password changed; re-enter it.
+- A reauthentication prompt usually means your password changed or the session was revoked; if your password is unchanged, re-entering it is safe.
 - Download diagnostics from the device page when reporting a problem.
 - Enable debug logging:
 
