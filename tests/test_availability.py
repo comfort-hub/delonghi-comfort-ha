@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 _OFFLINE_DEVICE = Device.from_dict(
     {
-        "machineName": "EUPDL01COM000000004875",
-        "serialNumber": "90:70:69:90:93:74",
+        "machineName": "EUPDL01COM000000000001",
+        "serialNumber": "02:00:00:00:00:01",
         "machineModel": "TRD5WIFI",
         "status": "OFFLINE",
     }
@@ -83,8 +83,8 @@ async def test_command_failure_raises_home_assistant_error(
 
 _ONLINE_DEVICE = Device.from_dict(
     {
-        "machineName": "EUPDL01COM000000004875",
-        "serialNumber": "90:70:69:90:93:74",
+        "machineName": "EUPDL01COM000000000001",
+        "serialNumber": "02:00:00:00:00:01",
         "machineModel": "TRD5WIFI",
         "status": "ONLINE",
     }

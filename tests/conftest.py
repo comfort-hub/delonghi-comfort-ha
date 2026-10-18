@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
 pytest_plugins = ["pytest_homeassistant_custom_component"]
 
-THING = "EUPDL01COM000000004875"
-MAC = "90:70:69:90:93:74"
+THING = "EUPDL01COM000000000001"
+MAC = "02:00:00:00:00:01"
 
 _REPORTED = {
     "DeviceStatus": 1,
