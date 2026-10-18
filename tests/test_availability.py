@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 _OFFLINE_DEVICE = Device.from_dict(
     {
-        "machineName": "EUPDL01COM000000000001",
-        "serialNumber": "02:00:00:00:00:01",
+        "machineName": THING,
+        "serialNumber": MAC,
         "machineModel": "TRD5WIFI",
         "status": "OFFLINE",
     }
@@ -83,8 +83,8 @@ async def test_command_failure_raises_home_assistant_error(
 
 _ONLINE_DEVICE = Device.from_dict(
     {
-        "machineName": "EUPDL01COM000000000001",
-        "serialNumber": "02:00:00:00:00:01",
+        "machineName": THING,
+        "serialNumber": MAC,
         "machineModel": "TRD5WIFI",
         "status": "ONLINE",
     }
@@ -187,10 +187,7 @@ async def _go_offline_then_push(
 ) -> str:
     """Take the heater offline, queue `back` as the next poll answer, and push."""
     cid = await _setup(hass, entry)
-    offline = Device.from_dict(
-        {"machineName": THING, "serialNumber": MAC, "status": "OFFLINE"}
-    )
-    mock_client.async_get_devices = AsyncMock(return_value=[offline])
+    mock_client.async_get_devices = AsyncMock(return_value=[_OFFLINE_DEVICE])
     await entry.runtime_data.async_refresh()
     await hass.async_block_till_done()
     assert hass.states.get(cid).state == STATE_UNAVAILABLE
@@ -198,8 +195,6 @@ async def _go_offline_then_push(
     mock_client.async_get_devices = AsyncMock(return_value=[back])
     push = mock_client.add_status_listener.call_args[0][0]
     push(MachineStatus.from_reported({"DeviceStatus": 1, "TempSetPoint": 22}))
-    # Let the debounced refresh (cooldown after the poll above) fire.
-    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=30))
     await hass.async_block_till_done()
     return cid
 
@@ -208,10 +203,9 @@ async def test_push_while_offline_stays_unavailable(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_client: MagicMock
 ) -> None:
     """A stale shadow pushed after reconnect must not mark an offline heater available."""
-    offline = Device.from_dict(
-        {"machineName": THING, "serialNumber": MAC, "status": "OFFLINE"}
+    cid = await _go_offline_then_push(
+        hass, mock_config_entry, mock_client, _OFFLINE_DEVICE
     )
-    cid = await _go_offline_then_push(hass, mock_config_entry, mock_client, offline)
 
     assert hass.states.get(cid).state == STATE_UNAVAILABLE
     mock_client.async_get_devices.assert_awaited()  # a refresh was requested

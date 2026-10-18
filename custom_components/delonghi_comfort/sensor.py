@@ -155,9 +155,5 @@ class DelonghiSensor(DelonghiComfortEntity, SensorEntity):
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit, following the heater's display unit if so configured."""
         if self.entity_description.device_unit:
-            return (
-                UnitOfTemperature.CELSIUS
-                if self.status.celsius
-                else UnitOfTemperature.FAHRENHEIT
-            )
+            return self.device_temperature_unit
         return self.entity_description.native_unit_of_measurement

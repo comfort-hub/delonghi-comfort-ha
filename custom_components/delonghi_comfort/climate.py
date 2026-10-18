@@ -11,7 +11,7 @@ from homeassistant.components.climate import (
     ClimateEntityFeature,
     HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
@@ -73,11 +73,7 @@ class DelonghiClimate(DelonghiComfortEntity, ClimateEntity):
     @property
     def temperature_unit(self) -> str:
         """Report whichever unit the device is currently displaying."""
-        return (
-            UnitOfTemperature.CELSIUS
-            if self.status.celsius
-            else UnitOfTemperature.FAHRENHEIT
-        )
+        return self.device_temperature_unit
 
     @property
     def min_temp(self) -> float:

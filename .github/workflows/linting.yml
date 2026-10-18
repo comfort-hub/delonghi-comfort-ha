@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+env:
+  # No .python-version: pin to a Python with pycares wheels, not whatever uv finds newest.
+  UV_PYTHON: "3.13"
+
 jobs:
   pre-commit:
     name: Pre-commit
@@ -36,9 +40,6 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
-    env:
-      # No .python-version: pin to a Python with pycares wheels, not whatever uv finds newest.
-      UV_PYTHON: "3.13"
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
